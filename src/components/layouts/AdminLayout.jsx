@@ -16,9 +16,8 @@ import {
   LogOut,
 } from "lucide-react";
 import toast from "react-hot-toast";
-// import toast from "react-hot-toast";
 
-const AdminLayout = ({ children }) => {
+const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
@@ -38,14 +37,13 @@ const AdminLayout = ({ children }) => {
       const isCurrentlyCollapsed = prev[sectionName];
 
       if (isCurrentlyCollapsed) {
-        // If clicking on a collapsed section, expand it and collapse all others
+
         const newState = {};
         Object.keys(prev).forEach((key) => {
           newState[key] = key === sectionName ? false : true;
         });
         return newState;
       } else {
-        // If clicking on an expanded section, just collapse it
         return {
           ...prev,
           [sectionName]: true,
@@ -72,7 +70,6 @@ const AdminLayout = ({ children }) => {
   };
 
   const handleLogout = () => {
-    // logout();
     toast.success("Logged out successfully");
     navigate("/");
   };
@@ -114,7 +111,6 @@ const AdminLayout = ({ children }) => {
           const isActive = location.pathname === item.href;
 
           if (!isMobile && sidebarCollapsed) {
-            // Show only icon for collapsed desktop sidebar
             return (
               <div key={item.name} className="relative group">
                 <Link
@@ -133,7 +129,6 @@ const AdminLayout = ({ children }) => {
               </div>
             );
           } else {
-            // Show full menu item
             return (
               <Link
                 key={item.name}
@@ -307,16 +302,11 @@ const AdminLayout = ({ children }) => {
                   <Settings className="h-4 w-4 mr-2 group-hover:text-corrugated-600" />
                   <Link
                     to="/admin/settings"
-                    // onClick={closeSettingsDropdown}
                     className="flex items-center w-full px-3 py-2 text-sm text-manufacturing-700 hover:bg-corrugated-50 hover:text-corrugated-700 rounded-md transition-colors"
                   >
                     Settings
                   </Link>
-                  {/* <ChevronDown
-                    className={`h-4 w-4 ml-1 transition-transform ${
-                      settingsDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  /> */}
+                  
                 </button>
 
                 {/* Settings Dropdown Menu */}

@@ -48,8 +48,29 @@ const Product = () => {
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
+  const handleDelete = async (row) => {
+    if (window.confirm("Are you sure you want to delete this product?")) {
+      setLoading(true);
+      ProductService.delete(row.id)
+        .then((response) => {
+          if (response.success) {
+            fetchProducts();
+          } else {
+            alert(response.message || "Failed to delete product");
+          }
+        })
+        .catch((error) => {
+          console.error("Error deleting product:", error);
+          alert("Failed to delete product");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  };
 
   const columns = [
+    { key: "product_id", label: "ID" },
     { key: "product_name", label: "Product Name" },
     { key: "category", label: "Category" },
     { key: "subcategory", label: "Sub Category" },
@@ -82,9 +103,9 @@ const Product = () => {
         loading={loading}
         emptyMessage="No Products found"
         showActions={true}
-        onView={(row) => console.log("View product:", row)}
-        onEdit={(row) => console.log("Edit product:", row)}
-        onDelete={(row) => console.log("Delete product:", row)}
+        onView={(row) => navigate(`/view-product/${row.id}`)}
+        onEdit={(row) => navigate(`/edit-product/${row.id}`)}
+        onDelete={(row) => handleDelete(row)}
       />
     </div>
   );

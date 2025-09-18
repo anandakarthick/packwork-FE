@@ -1,4 +1,3 @@
-// src/components/tables/CommonTable.jsx
 import React from "react";
 import { Eye, Edit, Trash2 } from "lucide-react";
 
@@ -40,7 +39,7 @@ const CommonTable = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {data.map((row, index) => (
-              <tr key={index} className="hover:bg-gray-50">
+              <tr key={index} onClick={() => onView(row)} className="hover: cursor-pointer hover:bg-gray-50">
                 {columns.map((col) => (
                   <td
                     key={col.key}
