@@ -8,13 +8,10 @@ const CommonHeader = ({
   searchPlaceholder = "Search...",
   onAdd,
   addButtonText = "Add",
-  onImport,
-  showImport = false,
   showAddButton = true,
 }) => {
   return (
     <div className="mb-4">
-      {/* Title + Add Button (Desktop) */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-manufacturing-800 flex items-center">
@@ -40,10 +37,8 @@ const CommonHeader = ({
         )}
       </div>
 
-      {/* Search + Actions */}
       <div className="card-corrugated p-4 mt-4">
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-          {/* Search Bar */}
           <div className="relative flex-1 max-w-md w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
             <input
@@ -55,19 +50,7 @@ const CommonHeader = ({
             />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2">
-            {showImport && (
-              <button
-                onClick={onImport}
-                className="px-3 py-2 text-manufacturing-600 border border-manufacturing-300 rounded-lg hover:bg-manufacturing-50 transition-colors font-medium flex items-center text-sm"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-              </button>
-            )}
-
-            {/* Mobile Add Button */}
             {showAddButton && (
               <button
                 onClick={onAdd}
@@ -82,6 +65,6 @@ const CommonHeader = ({
       </div>
     </div>
   );
-}
+};
 
 export default CommonHeader;

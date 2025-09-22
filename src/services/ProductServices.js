@@ -50,4 +50,14 @@ export const ProductService = {
       return { success: false, message: error.response?.data?.message };
     }
   },
+
+  getDieProducts: async ({params}) => {
+    try {
+      const response = await api.get("/products/die", { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching die products:", error);
+      return { success: false, data: [] };
+    }
+  },
 };

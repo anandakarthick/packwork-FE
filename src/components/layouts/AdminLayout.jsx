@@ -14,6 +14,7 @@ import {
   Type,
   FileText,
   LogOut,
+  Tag,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -37,7 +38,6 @@ const AdminLayout = () => {
       const isCurrentlyCollapsed = prev[sectionName];
 
       if (isCurrentlyCollapsed) {
-
         const newState = {};
         Object.keys(prev).forEach((key) => {
           newState[key] = key === sectionName ? false : true;
@@ -61,7 +61,10 @@ const AdminLayout = () => {
     {
       sectionName: "Product",
       collapsible: true,
-      items: [{ name: "Product", href: "/", icon: Package }],
+      items: [
+        { name: "Product", href: "/", icon: Package },
+        { name: "SKU", href: "/sku", icon: Tag },
+      ],
     },
   ];
 
@@ -71,7 +74,7 @@ const AdminLayout = () => {
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
-    navigate("/");
+    navigate("/login");
   };
 
   const renderSectionHeader = (section = false) => {
@@ -122,7 +125,7 @@ const AdminLayout = () => {
                 >
                   <item.icon className="h-5 w-5 flex-shrink-0" />
                 </Link>
-                {/* Tooltip for collapsed state */}
+
                 <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
                   {item.name}
                 </div>
@@ -152,7 +155,6 @@ const AdminLayout = () => {
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-cardboard-50 to-corrugated-50">
-      {/* Mobile sidebar */}
       <div
         className={`fixed inset-0 z-50 lg:hidden ${
           sidebarOpen ? "block" : "hidden"
@@ -188,7 +190,6 @@ const AdminLayout = () => {
         </div>
       </div>
 
-      {/* Desktop sidebar */}
       <div
         className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ${
           sidebarCollapsed ? "lg:w-16" : "lg:w-52"
@@ -230,13 +231,11 @@ const AdminLayout = () => {
         </div>
       </div>
 
-      {/* Main content */}
       <div
         className={`transition-all duration-300 ${
           sidebarCollapsed ? "lg:pl-16" : "lg:pl-52"
         }`}
       >
-        {/* Top bar */}
         <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg shadow-sm border-b border-cardboard-200">
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
             <div className="flex items-center space-x-4">
@@ -248,7 +247,6 @@ const AdminLayout = () => {
                 <Menu className="h-6 w-6" />
               </button>
 
-              {/* Desktop Expand Button - Only visible when sidebar is collapsed */}
               {sidebarCollapsed && (
                 <button
                   type="button"
@@ -262,25 +260,6 @@ const AdminLayout = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Current Plan Info */}
-              {/* {currentPlan && (
-                <div className="hidden lg:flex items-center space-x-3 px-3 py-2 bg-gray-50 rounded-lg">
-                  <div className="text-right">
-                    <div className="text-xs font-medium text-gray-900">
-                      {currentPlan.package?.name || "Current Plan"}
-                    </div>
-                    <div
-                      className={`text-xs ${getExpiryColor(
-                        currentPlan.subscription?.end
-                      )}`}
-                    >
-                      {formatExpiryDate(currentPlan.subscription?.end)}
-                    </div>
-                  </div>
-                </div>
-              )} */}
-
-              {/* Upgrade Plan Button */}
               <Link
                 to="/admin/upgrade-plan"
                 className="flex items-center text-xs text-manufacturing-600 hover:text-corrugated-600 transition-colors group px-3 py-2 rounded-lg hover:bg-corrugated-50"
@@ -291,9 +270,6 @@ const AdminLayout = () => {
                 </span>
               </Link>
 
-              {/* <NotificationIcon /> */}
-
-              {/* Settings Dropdown */}
               <div className="relative">
                 <button
                   onClick={toggleSettingsDropdown}
@@ -306,10 +282,8 @@ const AdminLayout = () => {
                   >
                     Settings
                   </Link>
-                  
                 </button>
 
-                {/* Settings Dropdown Menu */}
                 {settingsDropdownOpen && (
                   <>
                     <div
@@ -365,14 +339,10 @@ const AdminLayout = () => {
           </div>
         </div>
 
-        {/* Page content */}
         <main className="min-h-screen">
           <Outlet />
         </main>
       </div>
-
-      {/* Notification Popup */}
-      {/* <NotificationPopup /> */}
     </div>
   );
 };
