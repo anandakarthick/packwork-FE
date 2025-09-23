@@ -28,7 +28,7 @@ const Product = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await ProductService.getAll();
+      const response = await ProductService.getAll({ categoryFilter: "product" });
       setProducts(response?.data?.products || []);
     } catch (error) {
       console.error("Error fetching products:", error);

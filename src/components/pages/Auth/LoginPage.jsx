@@ -21,28 +21,7 @@ const LoginPage = () => {
 
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
-    // navigate(from, { replace: true });
-    // setIsLoading(true);
-    // try {
-    //   toast.success("Login successful!");
-    //   navigate("/product");
-    //   // navigate(from, { replace: true });
-    // } catch (error) {
-    //   if (error.response?.status === 403) {
-    //     const errorData = error.response.data;
-    //     if (errorData.redirect === "/pricing") {
-    //       toast.error(errorData.message);
-
-    //       setTimeout(() => {
-    //         navigate("/pricing");
-    //       }, 2000);
-    //       return;
-    //     }
-    //   }
-    //   toast.error(error.response?.data?.message || "Login failed");
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    navigate("/");
   };
 
   return (
@@ -62,7 +41,6 @@ const LoginPage = () => {
           </p>
         </div>
 
-        {/* User Type Selector */}
         <div className="flex rounded-md shadow-sm" role="group">
           <button
             type="button"
@@ -220,14 +198,12 @@ const LoginPage = () => {
             </div>
           )}
 
-          {/* Back to Home */}
           <div className="text-center">
             <Link to="/" className="text-sm text-gray-600 hover:text-blue-500">
               ← Back to Home
             </Link>
           </div>
 
-          {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h3 className="text-sm font-medium text-blue-800 mb-2">
               Demo Credentials:

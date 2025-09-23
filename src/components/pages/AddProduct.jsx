@@ -11,7 +11,14 @@ const AddProduct = () => {
 
   const [originalData, setOriginalData] = useState(null);
 
-  const { register, handleSubmit, reset, getValues, watch } = useForm({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    getValues,
+    watch,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       product_name: "",
       reference_number: "",
@@ -43,6 +50,14 @@ const AddProduct = () => {
 
   const subcategory = watch("subcategory");
   const category = watch("category");
+
+  const handleInputValidate = (e, type) => {
+    if (type === "number") {
+      if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+    } else if (type === "text") {
+      if (!/^[a-zA-Z0-9\s]*$/.test(e.key)) e.preventDefault();
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -333,17 +348,17 @@ const AddProduct = () => {
               type: "text",
             },
             {
-              label: "Client Reference Code",
+              label: "Client Reference Code *",
               name: "client_reference_code",
               type: "text",
             },
             { label: "Manufacturer", name: "manufacturer", type: "text" },
             {
-              label: "Minimum Stock Level",
+              label: "Minimum Stock Level *",
               name: "min_stock_level",
               type: "number",
             },
-            { label: "Reorder Level", name: "reorder_level", type: "number" },
+            { label: "Reorder Level *", name: "reorder_level", type: "number" },
           ].map((field) => (
             <div key={field.name}>
               <label className="block text-xs font-medium text-manufacturing-700 mb-1">
@@ -351,10 +366,26 @@ const AddProduct = () => {
               </label>
               <input
                 type={field.type}
-                {...register(field.name)}
-                className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                placeholder={`Enter ${field.label.toLowerCase()}`}
+                {...register(field.name, {
+                  required: field.label.includes("*")
+                    ? `${field.label.replace("*", "").trim()} is required`
+                    : false,
+                  min: field.type === "number" ? 0 : undefined,
+                })}
+                onKeyDown={(e) => handleInputValidate(e, field.type)}
+                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                  errors[field.name] ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder={`Enter ${field.label
+                  .replace("*", "")
+                  .trim()
+                  .toLowerCase()}`}
               />
+              {errors[field.name] && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[field.name].message}
+                </p>
+              )}
             </div>
           ))}
 
@@ -363,14 +394,18 @@ const AddProduct = () => {
               Stock Unit *
             </label>
             <select
-              {...register("stock_unit")}
+              {...register("stock_unit", {
+                required: "Stock Unit is required",
+              })}
               onChange={(e) => {
                 reset((prev) => ({
                   ...prev,
                   stock_unit: e.target.value,
                 }));
               }}
-              className="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+              className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                errors.stock_unit ? "border-red-500" : "border-gray-300"
+              }`}
             >
               <option value="">Select Stock Unit</option>
               <option value="Kg">Kg</option>
@@ -380,6 +415,11 @@ const AddProduct = () => {
               <option value="Piece">Piece</option>
               <option value="Meter">Meter</option>
             </select>
+            {errors.stock_unit && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.stock_unit.message}
+              </p>
+            )}
           </div>
 
           <div>
@@ -387,7 +427,7 @@ const AddProduct = () => {
               Category *
             </label>
             <select
-              {...register("category")}
+              {...register("category", { required: "Category is required" })}
               onChange={(e) => {
                 const currentValues = watch();
                 reset({
@@ -396,7 +436,9 @@ const AddProduct = () => {
                   subcategory: "",
                 });
               }}
-              className="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+              className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                errors.category ? "border-red-500" : "border-gray-300"
+              }`}
             >
               <option value="">Select Category</option>
               <option value="Raw-materials">Raw Materials</option>
@@ -404,6 +446,11 @@ const AddProduct = () => {
               <option value="Finished-goods">Finished Goods</option>
               <option value="Semi-Finished-goods">Semi-Finished Goods</option>
             </select>
+            {errors.category && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.category.message}
+              </p>
+            )}
           </div>
 
           {category && (
@@ -412,8 +459,12 @@ const AddProduct = () => {
                 Subcategory *
               </label>
               <select
-                {...register("subcategory")}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                {...register("subcategory", {
+                  required: "subcategory is required",
+                })}
+                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                  errors.subcategory ? "border-red-500" : "border-gray-300"
+                }`}
               >
                 <option value="">Select Subcategory</option>
                 {subcategories[category]?.map((sub) => (
@@ -422,6 +473,11 @@ const AddProduct = () => {
                   </option>
                 ))}
               </select>
+              {errors.subcategory && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.subcategory.message}
+                </p>
+              )}
             </div>
           )}
 
@@ -453,104 +509,185 @@ const AddProduct = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               {(subcategory === "Pasting-glue" ||
                 subcategory === "Corrugation-glue") && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Glue Type
-                    </label>
-                    <select
-                      {...register("glue_specifications.glue_type")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                    >
-                      <option value="">Select Glue Type</option>
-                      <option value="Starch-based">Starch-based</option>
-                      <option value="Casein">Casein</option>
-                      <option value="Synthetic">Synthetic</option>
-                    </select>
-                  </div>
-                </>
+                <div>
+                  <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                    Glue Type *
+                  </label>
+                  <select
+                    {...register("glue_specifications.glue_type", {
+                      required: "Glue Type is required",
+                    })}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                      errors?.glue_specifications?.glue_type
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Select Glue Type</option>
+                    <option value="Starch-based">Starch-based</option>
+                    <option value="Casein">Casein</option>
+                    <option value="Synthetic">Synthetic</option>
+                  </select>
+                  {errors?.glue_specifications?.glue_type && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.glue_specifications.glue_type.message}
+                    </p>
+                  )}
+                </div>
               )}
 
               {subcategory === "Stitching-wires" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Wire Type
-                    </label>
-                    <select
-                      {...register("wire_specifications.wire_type")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                    >
-                      <option value="">Select Wire Type</option>
-                      <option value="Galvanized">Galvanized</option>
-                      <option value="Stainless Steel">Stainless Steel</option>
-                      <option value="Copper-coated">Copper-coated</option>
-                    </select>
-                  </div>
-                </>
+                <div>
+                  <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                    Wire Type *
+                  </label>
+                  <select
+                    {...register("wire_specifications.wire_type", {
+                      required: "Wire Type is required",
+                    })}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                      errors?.wire_specifications?.wire_type
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Select Wire Type</option>
+                    <option value="Galvanized">Galvanized</option>
+                    <option value="Stainless Steel">Stainless Steel</option>
+                    <option value="Copper-coated">Copper-coated</option>
+                  </select>
+                  {errors?.wire_specifications?.wire_type && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.wire_specifications.wire_type.message}
+                    </p>
+                  )}
+                </div>
               )}
 
               {subcategory === "Reels" && (
                 <>
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      GSM
+                      GSM *
                     </label>
                     <input
                       type="number"
-                      {...register("layer_specifications.0.gsm")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      {...register("layer_specifications.0.gsm", {
+                        required: "GSM is required",
+                        min: { value: 0, message: "GSM cannot be negative" },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.layer_specifications?.[0]?.gsm
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Enter GSM (e.g. 120)"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      BF
-                    </label>
-                    <input
-                      type="number"
-                      {...register("layer_specifications.0.bf")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                      placeholder="Enter BF (e.g. 18)"
-                    />
+                    {errors?.layer_specifications?.[0]?.gsm && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.layer_specifications[0].gsm.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Color ID
+                      BF *
+                    </label>
+                    <input
+                      type="number"
+                      {...register("layer_specifications.0.bf", {
+                        required: "BF is required",
+                        min: { value: 0, message: "BF cannot be negative" },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.layer_specifications?.[0]?.bf
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      placeholder="Enter BF (e.g. 18)"
+                    />
+                    {errors?.layer_specifications?.[0]?.bf && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.layer_specifications[0].bf.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                      Color ID *
                     </label>
                     <input
                       type="text"
-                      {...register("layer_specifications.0.color_id")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      {...register("layer_specifications.0.color_id", {
+                        required: "Color ID is required",
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.layer_specifications?.[0]?.color_id
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Enter Color ID (e.g. color-001)"
                     />
+                    {errors?.layer_specifications?.[0]?.color_id && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.layer_specifications[0].color_id.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Reel Width
+                      Reel Width *
                     </label>
                     <input
                       type="number"
-                      {...register("reel_specifications.reel_width")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      {...register("reel_specifications.reel_width", {
+                        required: "Reel Width is required",
+                        min: {
+                          value: 0,
+                          message: "Reel Width cannot be negative",
+                        },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.reel_specifications?.reel_width
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Enter Reel Width (e.g. 1200)"
                     />
+                    {errors?.reel_specifications?.reel_width && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.reel_specifications.reel_width.message}
+                      </p>
+                    )}
                   </div>
+
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Units
+                      Units *
                     </label>
                     <select
-                      {...register("reel_specifications.units")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      {...register("reel_specifications.units", {
+                        required: "Unit is required",
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.reel_specifications?.units
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     >
                       <option value="">Select Unit</option>
                       <option value="mm">mm</option>
                       <option value="cm">cm</option>
                       <option value="inch">inch</option>
                     </select>
+                    {errors?.reel_specifications?.units && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.reel_specifications.units.message}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -559,48 +696,107 @@ const AddProduct = () => {
                 <>
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Board Length
+                      Board Length *
                     </label>
                     <input
                       type="number"
-                      {...register("die_specifications.board_length")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      {...register("die_specifications.board_length", {
+                        required: "Board Length is required",
+                        min: {
+                          value: 0,
+                          message: "Board Length cannot be negative",
+                        },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.die_specifications?.board_length
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Enter Board Length"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Board Width
-                    </label>
-                    <input
-                      type="number"
-                      {...register("die_specifications.board_width")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                      placeholder="Enter Board Width"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Impressions
-                    </label>
-                    <input
-                      type="number"
-                      {...register("die_specifications.impressions")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                      placeholder="Enter Impressions"
-                    />
+                    {errors?.die_specifications?.board_length && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.die_specifications.board_length.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Ups
+                      Board Width *
                     </label>
                     <input
                       type="number"
-                      {...register("die_specifications.ups")}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      {...register("die_specifications.board_width", {
+                        required: "Board Width is required",
+                        min: {
+                          value: 0,
+                          message: "Board Width cannot be negative",
+                        },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.die_specifications?.board_width
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      placeholder="Enter Board Width"
+                    />
+                    {errors?.die_specifications?.board_width && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.die_specifications.board_width.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                      Impressions *
+                    </label>
+                    <input
+                      type="number"
+                      {...register("die_specifications.impressions", {
+                        required: "Impressions is required",
+                        min: {
+                          value: 0,
+                          message: "Impressions cannot be negative",
+                        },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.die_specifications?.impressions
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      placeholder="Enter Impressions"
+                    />
+                    {errors?.die_specifications?.impressions && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.die_specifications.impressions.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                      Ups *
+                    </label>
+                    <input
+                      type="number"
+                      {...register("die_specifications.ups", {
+                        required: "Ups is required",
+                        min: { value: 0, message: "Ups cannot be negative" },
+                      })}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                        errors?.die_specifications?.ups
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Enter Ups"
                     />
+                    {errors?.die_specifications?.ups && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.die_specifications.ups.message}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
