@@ -31,7 +31,7 @@ const CommonTable = ({
               ))}
 
               {showActions && (
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               )}
@@ -39,19 +39,34 @@ const CommonTable = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {data.map((row, index) => (
-              <tr key={index} onClick={() => onView(row)} className="hover: cursor-pointer hover:bg-gray-50">
+              <tr
+                key={index}
+                onClick={() => onView(row)}
+                className="hover: cursor-pointer hover:bg-gray-50"
+              >
                 {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className="px-4 py-2 text-sm text-gray-700"
-                  >
-                    {row[col.key]}
+                  <td key={col.key} className="px-4 py-2 text-sm">
+                    {col.render ? (
+                      col.render(row) // ✅ if render callback is defined
+                    ) : col.key === "status" ? (
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          row.is_active
+                            ? "bg-success-100 text-success-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {row.is_active ? "Active" : "Inactive"}
+                      </span>
+                    ) : (
+                      row[col.key]
+                    )}
                   </td>
                 ))}
 
                 {showActions && (
-                  <td className="px-4 py-2 text-right">
-                    <div className="flex space-x-2 justify-end">
+                  <td className="px-4 py-2 text-center">
+                    <div className="flex space-x-2 justify-center">
                       {onView && (
                         <button
                           onClick={(e) => {

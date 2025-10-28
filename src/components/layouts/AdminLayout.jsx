@@ -15,6 +15,9 @@ import {
   FileText,
   LogOut,
   Tag,
+  User,
+  Factory,
+  Settings2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -59,13 +62,22 @@ const AdminLayout = () => {
   };
   const navigation = [
     {
-      sectionName: "Product",
+      sectionName: "Master",
       collapsible: true,
       items: [
-        { name: "Product", href: "/", icon: Package },
-        { name: "SKU", href: "/sku", icon: Tag },
+        { name: "Clients", href: "/clients", icon: User },
+        { name: "Suppliers", href: "/suppliers", icon: Factory },
+        { name: "Process", href: "/process", icon: Settings2 }
       ],
     },
+    // {
+    //   sectionName: "Product",
+    //   collapsible: true,
+    //   items: [
+    //     { name: "Product", href: "/", icon: Package },
+    //     { name: "SKU", href: "/sku", icon: Tag }
+    //   ],
+    // }
   ];
 
   const toggleSidebar = () => {

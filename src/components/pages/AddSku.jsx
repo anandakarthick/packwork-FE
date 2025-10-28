@@ -1,25 +1,51 @@
 import { useEffect, useState } from "react";
 import FormLayout from "../form/FormLayout";
 import { useNavigate, useParams } from "react-router-dom";
-import { useFieldArray, useForm } from "react-hook-form";
-import { Truck } from "lucide-react";
+import { FormProvider, useFieldArray, useForm } from "react-hook-form";
+import {
+  Edit,
+  FileText,
+  Layers,
+  Package,
+  Trash2,
+  Truck,
+  Upload,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { ProductService } from "../../services/ProductServices";
-import LayerConfiguration from "./LayerConfiguration";
+import { ClientService } from "../../services/ClientServices";
+import { RouteServices } from "../../services/RouteServices";
+import { FluteServices } from "../../services/FluteServices";
+import { ColorServices } from "../../services/ColorServices";
+import { TaxServices } from "../../services/TaxServices";
 import BoardInformation from "./BoardInformation";
 import DieInformation from "./DieInformation";
+import DocumentsUpload from "./DocumentsUpload";
+import PartitionInformation from "./PartitionInformation";
+import SkuInformation from "./SkuInformation";
+import GroupPartSection from "./GroupPartSection";
+import api from "../../services/api";
 
 const AddSku = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const plyOptions = ["2", "3", "5", "7", "9"];
-  const fluteTypes = ["A", "B", "C"];
+  const plyOptions = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
   const [helperBoard, setHelperBoard] = useState(0);
   const [calculatedDeckleSize, setCalculatedDeckleSize] = useState(null);
-  const [fluteDetails, setFluteDetails] = useState([]);
   const [originalData, setOriginalData] = useState(null);
   const [isStrictAdherence, setIsStrictAdherence] = useState(false);
   const [dieProducts, setDieProducts] = useState([]);
+  const [clientList, setClientList] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [flutes, setFlutes] = useState([]);
+  const [colors, setColors] = useState([]);
+  const [taxes, setTaxes] = useState([]);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [groupNameInput, setGroupNameInput] = useState("");
+  const [editingPartId, setEditingPartId] = useState(null);
+  const [partNameInput, setPartNameInput] = useState("");
+  const [skuList, setSkuList] = useState([]);
+  const [printDocuments, setPrintDocuments] = useState([]);
 
   const MM_TO_INCH = 0.039370078740157;
   const INCH_TO_MM = 25.4;
@@ -37,16 +63,140 @@ const AddSku = () => {
     width_trimming_tolerance: "",
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    control,
-    getValues,
-    formState: { errors },
-  } = useForm({
+  const [groups, setGroups] = useState([
+    {
+      id: Date.now(),
+      name: "",
+      parts: [
+        {
+          id: Date.now() + 1,
+          name: "",
+          sku: "",
+          layers: [],
+        },
+      ],
+    },
+  ]);
+
+  const addGroup = () => {
+    const newGroup = {
+      id: Date.now(),
+      name: "",
+      parts: [
+        {
+          id: Date.now() + 1,
+          name: "",
+          sku: "",
+          layers: [],
+        },
+      ],
+    };
+
+    const updatedGroups = [...groups, newGroup];
+    setGroups(updatedGroups);
+
+    // ✅ Also update react-hook-form field
+    setValue("group_part_specifications", updatedGroups, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const removeGroup = (groupId) => {
+    const updatedGroups = groups.filter((g) => g.id !== groupId);
+    setGroups(updatedGroups);
+
+    // ✅ Sync with react-hook-form
+    setValue("group_part_specifications", updatedGroups, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const updateGroupName = (id, newName) => {
+    const updatedGroups = groups.map((g) =>
+      g.id === id ? { ...g, name: newName } : g
+    );
+    setGroups(updatedGroups);
+
+    setValue("group_part_specifications", updatedGroups, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const updatePartName = (groupId, partId, newName) => {
+    const updatedGroups = groups.map((g) =>
+      g.id === groupId
+        ? {
+            ...g,
+            parts: g.parts.map((p) =>
+              p.id === partId ? { ...p, name: newName } : p
+            ),
+          }
+        : g
+    );
+    setGroups(updatedGroups);
+
+    setValue("group_part_specifications", updatedGroups, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const addPart = (groupId) => {
+    const newPart = {
+      id: Date.now(),
+      name: "",
+      sku: "",
+      ply: 2,
+      layers: [],
+    };
+
+    setGroups((groups) =>
+      groups.map((group) =>
+        group.id === groupId
+          ? { ...group, parts: [...group.parts, newPart] }
+          : group
+      )
+    );
+  };
+
+  const removePart = (groupId, partId) => {
+    const updatedGroups = groups.map((group) =>
+      group.id === groupId
+        ? { ...group, parts: group.parts.filter((p) => p.id !== partId) }
+        : group
+    );
+
+    setGroups(updatedGroups);
+
+    // ✅ Sync with react-hook-form
+    setValue("group_part_specifications", updatedGroups, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  useEffect(() => {
+    if (!getValues("group_part_specifications")?.length) {
+      setValue("group_part_specifications", groups);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchSkus = async () => {
+      try {
+        const response = await ProductService.getAll({ categoryFilter: "sku" });
+        setSkuList(response.data?.products || []);
+      } catch (error) {
+        console.error("Failed to fetch SKU list:", error);
+      }
+    };
+    fetchSkus();
+  }, []);
+
+  const methods = useForm({
     defaultValues: {
       product_name: "",
       reference_number: "",
@@ -54,21 +204,21 @@ const AddSku = () => {
       category: "SKU",
       manufacturer: "",
       subcategory: "",
+      stock_unit: "",
+      min_stock_level: "",
+      method: "",
       status: "active",
       company_id: "comp-123",
       created_by: "user-001",
-      die_specifications: {
-        die_id: "",
-        board_length: "",
-        board_width: "",
-        impressions: "",
-        blank_length: "",
-        blank_width: "",
-        ups_length: "",
-        ups_width: "",
-        total_blanks: "",
-        ups: "",
+      tax_specifications: {
+        gst_percentage: "",
+        hsn_code: "",
       },
+      color_specifications: [
+        {
+          color_code: "",
+        },
+      ],
       board_specifications: {
         units: "mm",
         box_length: "",
@@ -89,51 +239,234 @@ const AddSku = () => {
         ply: "2",
         strict_adherence: false,
       },
-      layer_specifications: [
+      sku_die_specifications: {
+        board_length: "",
+        board_width: "",
+        impressions: "",
+        ups: "",
+      },
+      partition_specifications: {
+        columns: "",
+        rows: "",
+        board_length: "",
+        board_width: "",
+        die_id: "",
+        ups: "",
+        deckle_size: "",
+        auto_calc_ratio: "",
+      },
+      composite_specifications: {
+        sku_id: "",
+        quantity: "",
+      },
+      print_specifications: {
+        print_type: "",
+      },
+      print_documents: [],
+      route_specifications: [
         {
-          layer_id: 0,
-          layer_name: "",
-          gsm: "",
-          bf: "",
-          flute_type: "",
-          color_id: "",
-          weight: "",
-          bursting_strength: "",
+          route_id: "",
         },
       ],
+      group_part_specifications: [
+        {
+          group_name: "",
+          parts: [
+            {
+              part_name: "",
+              layers: [
+                {
+                  layer_id: 0,
+                  layer_name: "",
+                  gsm: "",
+                  bf: "",
+                  flute_type: "",
+                  color_id: "",
+                  weight: "",
+                  bursting_strength: "",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      method_specifications: {
+        method: "",
+        wire_type: "",
+        number_of_pins: "",
+        position: "",
+      },
     },
   });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    control,
+    getValues,
+    setValue,
+    formState: { errors },
+  } = methods;
 
   const selectedPly = watch("board_specifications.ply");
   const boardSpecs = watch("board_specifications");
   const layers = watch("layer_specifications");
   const selectedSubcategory = watch("subcategory");
+  const selectedPrintType = watch("print_specifications.print_type");
+
+  // --- Helpers (place near top of component) ---
+  const makeFileEntry = (file) => ({
+    id:
+      (crypto && crypto.randomUUID && crypto.randomUUID()) ||
+      `${Date.now()}-${Math.random()}`,
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    file, // keep File for upload
+  });
+
+  // --- handleFileInput (for <input type="file" />) ---
+  const handleFileInput = (e) => {
+    const files = Array.from(e.target.files || []);
+
+    if (files.length === 0) return;
+
+    // Map to normalized objects
+    const newEntries = files.map(makeFileEntry);
+
+    // Limit: keep at most 10 total
+    setPrintDocuments((prev) => {
+      const merged = [...prev, ...newEntries].slice(0, 10);
+      // Update form value as well
+      setValue("print_documents", merged, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      return merged;
+    });
+  };
+
+  /// --- handleUpload (for drag & drop) ---
+  const handleUpload = (files) => {
+    const incoming = Array.from(files || []);
+
+    // filter valid types + sizes
+    const validFiles = incoming.filter((file) => {
+      const isValidType = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ].includes(file.type);
+      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
+      return isValidType && isValidSize;
+    });
+
+    if (validFiles.length === 0) return;
+
+    // Map to normalized entries WITHOUT including any existing docs again
+    const newEntries = validFiles.map(makeFileEntry);
+
+    // Merge into local state and form state with a single concat (no duplication)
+    setPrintDocuments((prev) => {
+      const merged = [...prev, ...newEntries].slice(0, 10);
+      setValue("print_documents", merged, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      return merged;
+    });
+  };
+
+  /// --- onRemove (accepts id) ---
+  const onRemove = (id) => {
+    if (!id) return;
+    // Update react-hook-form value
+    const currentDocs = watch("print_documents") || [];
+    const updatedDocs = Array.isArray(currentDocs)
+      ? currentDocs.filter((doc) => doc.id !== id)
+      : [];
+
+    setValue("print_documents", updatedDocs, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    // Also update local state
+    setPrintDocuments(updatedDocs);
+  };
+  useEffect(() => {
+    const groupPartSpecs = groups
+      .filter((group) => group.name.trim() !== "")
+      .map((group) => ({
+        group_name: group.name,
+        parts: group.parts
+          .filter((part) => part.name.trim() !== "")
+          .map((part) => ({
+            part_name: part.name,
+            layers: part.layers || [],
+          })),
+      }));
+    setValue("group_part_specifications", groupPartSpecs);
+  }, [groups, setValue]);
 
   useEffect(() => {
-    if (selectedSubcategory === "Die") {
-      const fetchDieProducts = async () => {
-        console.log("inside the fetch die products");
-        const result = await ProductService.getDieProducts({
-          categoryFilter: "sku",
-        });
-        console.log("Products Die:", result);
-        setDieProducts(result?.data?.products);
-      };
-      fetchDieProducts();
-    }
+    const fetchMasters = async () => {
+      try {
+        const response = await ClientService.getAllClients();
+        console.log("Clients:", response.data);
+        setClientList(response.data);
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+      try {
+        const response = await RouteServices.getAllRoutes();
+        console.log("Routes:", response.data);
+        setRoutes(response.data);
+      } catch (error) {
+        console.error("Error fetching routes:", error);
+      }
+      try {
+        const response = await FluteServices.getAllFlutes();
+        console.log("Flutes:", response.data);
+        setFlutes(response.data);
+      } catch (error) {
+        console.error("Error fetching flutes:", error);
+      }
+      try {
+        const response = await ColorServices.getAllColors();
+        console.log("Colors:", response.data);
+        setColors(response.data);
+      } catch (error) {
+        console.error("Error fetching colors:", error);
+      }
+      try {
+        const response = await TaxServices.getAllTaxes();
+        console.log("Taxes:", response.data);
+        setTaxes(response.data);
+      } catch (error) {
+        console.error("Error fetching taxes:", error);
+      }
+    };
+    fetchMasters();
+  }, []);
+
+  useEffect(() => {
+    const fetchDieProducts = async () => {
+      console.log("inside the fetch die products");
+      const result = await ProductService.getDieProducts({
+        categoryFilter: "sku",
+      });
+      console.log("Products Die:", result);
+      setDieProducts(result?.data?.products);
+    };
+    fetchDieProducts();
   }, [selectedSubcategory]);
 
   useEffect(() => {
     if (!selectedPly) setValue("board_specifications.ply", plyOptions[0]);
   }, [selectedPly, setValue]);
-
-  useEffect(() => {
-    setFluteDetails([
-      { name: "A", take_up_factor: 1.5 },
-      { name: "B", take_up_factor: 1.3 },
-      { name: "C", take_up_factor: 1.4 },
-    ]);
-  }, []);
 
   const { fields, replace } = useFieldArray({
     control,
@@ -225,8 +558,8 @@ const AddSku = () => {
     const widthBoardSizeHelper = (width + height) * 1 + widthTrimmingTolerance;
 
     setHelperBoard(widthBoardSizeHelper);
-    const calculatedDeckleSize = widthBoardSize || null;
-    setCalculatedDeckleSize(calculatedDeckleSize);
+    const calculatedDeckleSizeValue = widthBoardSize || null;
+    setCalculatedDeckleSize(calculatedDeckleSizeValue);
 
     return {
       length_board_size: Number(lengthBoardSize.toFixed(2)),
@@ -236,7 +569,7 @@ const AddSku = () => {
     };
   };
 
-  const calculateLayerWeight = (gsm, layerName, fluteType = "") => {
+  const calculateLayerWeight = (gsm, layerName, fluteType) => {
     const deckleSize = parseFloat(boardSpecs?.deckle_size) || 0;
     const boardLength = parseFloat(boardSpecs?.board_length) || 0;
     const gsmValue = parseFloat(gsm) || 0;
@@ -248,9 +581,7 @@ const AddSku = () => {
     const isCorrugation = isCorrugationLayer(layerName);
 
     if (isCorrugation && fluteType) {
-      const selectedFlute = fluteDetails.find(
-        (flute) => flute.name === fluteType
-      );
+      const selectedFlute = flutes.find((flute) => flute.id === fluteType);
       const takeUpFactor = selectedFlute
         ? parseFloat(selectedFlute.take_up_factor) || 1
         : 1;
@@ -483,88 +814,109 @@ const AddSku = () => {
       setValue("layer_specifications", updatedLayers);
     }
   };
+  const updateLayer = (groupIndex, partIndex, layerIndex, field, value) => {
+    setGroups((prevGroups) => {
+      const updatedGroups = [...prevGroups];
+      const group = updatedGroups[groupIndex];
+      if (!group) return prevGroups;
 
-  const updateLayer = (index, field, value) => {
-    const currentLayers = getValues("layer_specifications");
-    const updatedLayer = {
-      ...currentLayers[index],
-      [field]: value,
-    };
-    if (field === "gsm" || field === "flute_type") {
-      const gsm = field === "gsm" ? value : updatedLayer.gsm;
-      const fluteType =
-        field === "flute_type" ? value : updatedLayer.flute_type;
-      updatedLayer.weight = calculateLayerWeight(
-        gsm,
-        updatedLayer.layer_name,
-        fluteType
-      );
-    }
+      const part = group.parts[partIndex];
+      if (!part) return prevGroups;
 
-    if (field === "gsm" || field === "bf") {
-      const gsm = field === "gsm" ? value : updatedLayer.gsm;
-      const bf = field === "bf" ? value : updatedLayer.bf;
-      updatedLayer.bursting_strength = calculateLayerBurstingStrength(
-        gsm,
-        bf,
-        updatedLayer.layer_name
-      );
-    }
-    setValue(`layer_specifications.${index}`, updatedLayer, {
-      shouldDirty: true,
-      shouldValidate: false,
-      shouldTouch: true,
+      if (!Array.isArray(part.layers)) part.layers = [];
+
+      // Ensure the layer exists
+      while (part.layers.length <= layerIndex) {
+        part.layers.push({
+          layer_id: part.layers.length,
+          layer_name: "",
+          gsm: "",
+          bf: "",
+          flute_type: "",
+          color_id: "",
+          weight: "",
+          bursting_strength: "",
+        });
+      }
+
+      part.layers[layerIndex] = {
+        ...part.layers[layerIndex],
+        [field]: value,
+      };
+
+      return updatedGroups;
     });
   };
 
-  const copyFromPreviousLayer = (currentIndex) => {
-    if (currentIndex === 0) {
+  const copyFromPreviousLayer = (groupIndex, partIndex, currentLayerIndex) => {
+    if (currentLayerIndex === 0) {
       toast.error("No previous layer to copy from");
       return;
     }
 
-    const currentLayers = getValues("layer_specifications");
-    const previousLayer = currentLayers[currentIndex - 1];
-    const currentLayer = currentLayers[currentIndex];
+    setGroups((prevGroups) => {
+      const updatedGroups = [...prevGroups];
+      const group = updatedGroups[groupIndex];
+      if (!group) return prevGroups;
 
-    const hasDataToCopy =
-      previousLayer.gsm ||
-      previousLayer.bf ||
-      previousLayer.color_id !== "" ||
-      previousLayer.flute_type;
+      const part = group.parts[partIndex];
+      if (!part) return prevGroups;
 
-    if (!hasDataToCopy) {
-      toast.error("Previous layer has no data to copy");
-      return;
-    }
+      if (!Array.isArray(part.layers)) part.layers = [];
 
-    const updatedLayer = {
-      ...currentLayer,
-      gsm: previousLayer.gsm || "",
-      bf: previousLayer.bf || "",
-      color_id: previousLayer.color_id || "",
-      flute_type: previousLayer.flute_type || "",
-    };
+      const previousLayer = part.layers[currentLayerIndex - 1];
+      const currentLayer = part.layers[currentLayerIndex];
 
-    const calculatedWeight = calculateLayerWeight(
-      updatedLayer.gsm,
-      updatedLayer.layer_name,
-      updatedLayer.flute_type
-    );
-    const calculatedBS = calculateLayerBurstingStrength(
-      updatedLayer.gsm,
-      updatedLayer.bf,
-      updatedLayer.layer_name
-    );
+      if (!previousLayer) {
+        toast.error("Previous layer data not found");
+        return prevGroups;
+      }
 
-    updatedLayer.weight = calculatedWeight;
-    updatedLayer.bursting_strength = calculatedBS;
+      const hasDataToCopy =
+        previousLayer.gsm || previousLayer.bf || previousLayer.color_id !== "";
 
-    const updatedLayers = [...currentLayers];
-    updatedLayers[currentIndex] = updatedLayer;
-    setValue("layer_specifications", updatedLayers);
+      if (!hasDataToCopy) {
+        toast.error("Previous layer has no data to copy");
+        return prevGroups;
+      }
 
-    toast.success(`Data copied from previous layer successfully!`);
+      // Ensure the current layer exists
+      while (part.layers.length <= currentLayerIndex) {
+        part.layers.push({
+          layer_id: part.layers.length,
+          layer_name: "",
+          gsm: "",
+          bf: "",
+          flute_type: "",
+          color_id: "",
+          weight: "",
+          bursting_strength: "",
+        });
+      }
+
+      const updatedLayer = {
+        ...part.layers[currentLayerIndex],
+        gsm: previousLayer.gsm || "",
+        bf: previousLayer.bf || "",
+        color_id: previousLayer.color_id || "",
+      };
+
+      updatedLayer.weight = calculateLayerWeight(
+        updatedLayer.gsm,
+        updatedLayer.layer_name,
+        ""
+      );
+      updatedLayer.bursting_strength = calculateLayerBurstingStrength(
+        updatedLayer.gsm,
+        updatedLayer.bf,
+        updatedLayer.layer_name
+      );
+
+      part.layers[currentLayerIndex] = updatedLayer;
+
+      toast.success("Data copied from previous layer successfully!");
+      return updatedGroups;
+    });
   };
 
   const hasPreviousLayerData = (index) => {
@@ -600,16 +952,15 @@ const AddSku = () => {
   }, 0);
 
   const deepDiff = (obj1, obj2) => {
-    const compareObjects = (o1, o2, path = "") => {
+    const compareObjects = (o1, o2) => {
       const result = {};
 
       for (const key in o1) {
-        if (o1.hasOwnProperty(key)) {
-          const currentPath = path ? `${path}.${key}` : key;
-
+        if (Object.prototype.hasOwnProperty.call(o1, key)) {
           if (!(key in o2)) {
             result[key] = o1[key];
           } else if (Array.isArray(o1[key]) && Array.isArray(o2[key])) {
+            // Compare arrays deeply
             if (JSON.stringify(o1[key]) !== JSON.stringify(o2[key])) {
               result[key] = o1[key];
             }
@@ -619,7 +970,7 @@ const AddSku = () => {
             typeof o2[key] === "object" &&
             o2[key] !== null
           ) {
-            const nestedChanges = compareObjects(o1[key], o2[key], currentPath);
+            const nestedChanges = compareObjects(o1[key], o2[key]);
             if (Object.keys(nestedChanges).length > 0) {
               result[key] = nestedChanges;
             }
@@ -671,6 +1022,65 @@ const AddSku = () => {
               };
             });
 
+            let dieSpec = {};
+            let dieLayouts = [];
+
+            const groupSpecs = productVersion.GroupSpecifications || [];
+            const partSpecs = productVersion.PartsSpecifications || [];
+
+            // ✅ New: extract color details
+            const colorSpecs = productVersion.ProductColors?.map((color) => ({
+              color_code: color.color || "",
+            })) || [
+              {
+                color_code: "",
+              },
+            ];
+
+            // ✅ New: extract print documents
+            const printDocs =
+              productVersion.PrintDocuments?.map((doc) => ({
+                id: doc.id,
+                document_id: doc.document_id,
+                file_path: doc.Document?.document || "",
+              })) || [];
+
+            if (groupSpecs.length > 0) {
+              const reconstructedGroups = groupSpecs.map((group, index) => {
+                const groupParts = partSpecs.filter(
+                  (part) => part.group_name === group.group_name
+                );
+
+                return {
+                  id: Date.now() + index,
+                  name: group.group_name || "",
+                  parts:
+                    groupParts.length > 0
+                      ? groupParts.map((part, pIndex) => ({
+                          id: Date.now() + index + pIndex + 1000,
+                          name: part.part_name || "",
+                          sku: "",
+                          layers: [],
+                        }))
+                      : [
+                          {
+                            id: Date.now() + index + 1000,
+                            name: "",
+                            sku: "",
+                            layers: [],
+                          },
+                        ],
+                };
+              });
+
+              setGroups(reconstructedGroups);
+            }
+
+            if (res.data.subcategory === "Die-Cut") {
+              dieSpec = productVersion?.SkuDieSpecification;
+            }
+
+            // ✅ Add color_specifications and print_documents to reset
             reset({
               product_name: res.data.product_name || "",
               reference_number: res.data.reference_number || "",
@@ -679,6 +1089,8 @@ const AddSku = () => {
               subcategory: res.data.subcategory || "",
               manufacturer: res.data.manufacturer || "",
               status: res.data.status || "Active",
+              stock_unit: res.data.stock_unit || "",
+              min_stock_level: res.data.min_stock_level || 0,
               company_id: res.data.company_id || "comp-123",
               created_by: res.data.created_by || "user-001",
               board_specifications: {
@@ -701,7 +1113,59 @@ const AddSku = () => {
                 strict_adherence: boardSpec.strict_adherence || false,
               },
               layer_specifications: layersArray,
+              tax_specifications: {
+                gst_percentage: productVersion.ProductTax?.gst_percentage || 0,
+                hsn_code: productVersion.ProductTax?.hsn_code || 0,
+              },
+              route_specifications: productVersion.ProductRoute || [],
+              method_specifications: {
+                method: productVersion.MethodSpecification?.method || "",
+                wire_type: productVersion.MethodSpecification?.wire_type || "",
+                number_of_pins:
+                  productVersion.MethodSpecification?.number_of_pins || "",
+                position: productVersion.MethodSpecification?.position || "",
+              },
+              sku_die_specifications: {
+                die_id: dieSpec?.die_id || "",
+                board_width: dieSpec?.board_width || "",
+                board_height: dieSpec?.board_height || "",
+                ups: dieSpec?.ups || "",
+                deckle_size: dieSpec?.deckle_size || "",
+              },
+              partition_specifications: {
+                die_id: productVersion?.PartitionSpecification?.die_id,
+                board_length:
+                  productVersion?.PartitionSpecification?.board_length,
+                board_width:
+                  productVersion?.PartitionSpecification?.board_width,
+                columns: productVersion?.PartitionSpecification?.columns,
+                rows: productVersion?.PartitionSpecification?.rows,
+                ups: productVersion?.PartitionSpecification?.ups,
+                auto_calc_ratio:
+                  productVersion?.PartitionSpecification?.auto_calc_ratio,
+              },
+              composite_specifications: {
+                sku_id:
+                  productVersion?.CompositeSkuSpecification &&
+                  productVersion.CompositeSkuSpecification.length > 0
+                    ? productVersion.CompositeSkuSpecification[0]
+                        ?.sku_product_version_id
+                    : "",
+                quantity:
+                  productVersion?.CompositeSkuSpecification &&
+                  productVersion.CompositeSkuSpecification.length > 0
+                    ? productVersion.CompositeSkuSpecification[0]?.quantity
+                    : "",
+              },
+              die_sku_layouts: dieLayouts,
+              group_specifications: groupSpecs,
+              parts_specifications: partSpecs,
+
+              // ✅ new fields mapped
+              color_specifications: colorSpecs,
+              print_documents: printDocs,
             });
+
             setIsStrictAdherence(boardSpec.strict_adherence || false);
           }
         })
@@ -712,275 +1176,542 @@ const AddSku = () => {
     }
   }, [id, reset]);
 
-  const handleFormSubmit = (data) => {
+  const handleFormSubmit = async (data) => {
     console.log("Form Data:", data);
-    // const transformedPayload = {
-    //   product_name: data.product_name || "",
-    //   reference_number: data.reference_number || "",
-    //   client_reference_code: data.client_reference_code || "",
-    //   description: data.description || "",
-    //   category: data.category || "SKU",
-    //   subcategory: data.subcategory || "",
-    //   stages: "Cutting, Pasting, Packing",
-    //   manufacturer: data.manufacturer || "",
-    //   stock_unit: "Piece",
-    //   min_stock_level: 50,
-    //   reorder_level: 20,
-    //   status: data.status || "active",
-    //   company_id: data.company_id || "comp-123",
-    //   created_by: data.created_by || "user-001",
 
-    //   board_specification: {
-    //     ply: parseInt(data.board_specifications?.ply) || 2,
-    //     units: data.board_specifications?.units || "mm",
-    //     box_length: parseFloat(data.board_specifications?.box_length) || 0,
-    //     box_width: parseFloat(data.board_specifications?.box_width) || 0,
-    //     box_height: parseFloat(data.board_specifications?.box_height) || 0,
-    //     ups: parseFloat(data.board_specifications?.ups) || 0,
-    //     joints: parseFloat(data.board_specifications?.joints) || 0,
-    //     deckle_size: parseFloat(data.board_specifications?.deckle_size) || 0,
-    //     board_length: parseFloat(data.board_specifications?.board_length) || 0,
-    //     board_width: parseFloat(data.board_specifications?.board_width) || 0,
-    //     flap_width: parseFloat(data.board_specifications?.flap_width) || 0,
-    //     length_trimming_tolerance:
-    //       parseFloat(data.board_specifications?.length_trimming_tolerance) || 0,
-    //     width_trimming_tolerance:
-    //       parseFloat(data.board_specifications?.width_trimming_tolerance) || 0,
-    //     inner_outer_dimension:
-    //       data.board_specifications?.inner_outer_dimension || "",
-    //     strict_adherence: data.board_specifications?.strict_adherence || false,
-    //   },
+    const groups = data.group_specifications || [];
+    const parts = data.parts_specifications || [];
 
-    //   layer_specifications: (data.layer_specifications || []).map(
-    //     (layer, index) => ({
-    //       layer_id: index + 1,
-    //       layer_name: layer.layer_name || "",
-    //       gsm: parseFloat(layer.gsm) || 0,
-    //       color_id: layer.color_id || "",
-    //       bf: parseFloat(layer.bf) || 0,
-    //       flute_type: layer.flute_type || "",
-    //       weight: parseFloat(layer.weight) || 0,
-    //       bursting_strength: parseFloat(layer.bursting_strength) || 0,
-    //     })
-    //   ),
-    // };
+    // ---- Check for unnamed or default group names ----
+    const invalidGroups = groups.filter(
+      (g) =>
+        !g.name ||
+        g.name.trim() === "" ||
+        g.name.trim().toLowerCase().startsWith("group")
+    );
+    if (invalidGroups.length > 0) {
+      alert("Please rename all groups from their default names before saving.");
+      return;
+    }
 
-    // if (!id) {
-    //   ProductService.create(transformedPayload).then((res) => {
-    //     if (res.success) navigate("/sku");
-    //     else alert("Error creating product: " + res.message);
-    //   });
-    //   return;
-    // }
+    // ---- Check for duplicate group names ----
+    const groupNames = groups.map((g) => g.name.trim().toLowerCase());
+    const hasDuplicateGroups = new Set(groupNames).size !== groupNames.length;
+    if (hasDuplicateGroups) {
+      alert("Duplicate group names found. Please use unique group names.");
+      return;
+    }
 
-    // const originalVersion = originalData?.ProductVersions?.[0] || {};
-    // const normalizedOriginal = {
-    //   product_name: originalData?.product_name || "",
-    //   reference_number: originalData?.reference_number || "",
-    //   client_reference_code: originalData?.client_reference_code || "",
-    //   description: originalData?.description || "",
-    //   category: originalData?.category || "SKU",
-    //   subcategory: originalData?.subcategory || "",
-    //   stages: "Cutting, Pasting, Packing",
-    //   manufacturer: originalData?.manufacturer || "",
-    //   stock_unit: "Piece",
-    //   min_stock_level: 50,
-    //   reorder_level: 20,
-    //   status: originalData?.status || "active",
-    //   company_id: originalData?.company_id || "comp-123",
-    //   created_by: originalData?.created_by || "user-001",
+    // ---- Check for unnamed or default part names ----
+    const invalidParts = parts.filter(
+      (p) =>
+        !p.name ||
+        p.name.trim() === "" ||
+        p.name.trim().toLowerCase().startsWith("part")
+    );
+    if (invalidParts.length > 0) {
+      alert("Please rename all parts from their default names before saving.");
+      return;
+    }
 
-    //   board_specification: {
-    //     ply: originalVersion.BoardSpecification?.ply || 2,
-    //     units: originalVersion.BoardSpecification?.units || "mm",
-    //     box_length: originalVersion.BoardSpecification?.box_length || 0,
-    //     box_width: originalVersion.BoardSpecification?.box_width || 0,
-    //     box_height: originalVersion.BoardSpecification?.box_height || 0,
-    //     ups: originalVersion.BoardSpecification?.ups || 0,
-    //     joints: originalVersion.BoardSpecification?.joints || 0,
-    //     deckle_size: originalVersion.BoardSpecification?.deckle_size || 0,
-    //     board_length: originalVersion.BoardSpecification?.board_length || 0,
-    //     board_width: originalVersion.BoardSpecification?.board_width || 0,
-    //     flap_width: originalVersion.BoardSpecification?.flap_width || 0,
-    //     length_trimming_tolerance:
-    //       originalVersion.BoardSpecification?.length_trimming_tolerance || 0,
-    //     width_trimming_tolerance:
-    //       originalVersion.BoardSpecification?.width_trimming_tolerance || 0,
-    //     inner_outer_dimension:
-    //       originalVersion.BoardSpecification?.inner_outer_dimension || "",
-    //     strict_adherence:
-    //       originalVersion.BoardSpecification?.strict_adherence || false,
-    //   },
+    // ---- Check for duplicate part names within each group ----
+    const groupedParts = {};
+    parts.forEach((p) => {
+      if (!groupedParts[p.group_id]) groupedParts[p.group_id] = [];
+      groupedParts[p.group_id].push(p.name.trim().toLowerCase());
+    });
 
-    //   layer_specifications:
-    //     originalVersion.LayerSpecifications?.map((layer) => ({
-    //       layer_id: layer.layer_id,
-    //       layer_name: layer.layer_name || "",
-    //       gsm: layer.gsm || 0,
-    //       color_id: layer.color_id || "",
-    //       bf: layer.bf || 0,
-    //       flute_type: layer.flute_type || "",
-    //       weight: layer.weight || 0,
-    //       bursting_strength: layer.bursting_strength || 0,
-    //     })) || [],
-    // };
+    for (const [names] of Object.entries(groupedParts)) {
+      const hasDuplicates = new Set(names).size !== names.length;
+      if (hasDuplicates) {
+        alert(
+          "Duplicate part names found within the same group. Please make them unique."
+        );
+        return;
+      }
+    }
 
-    // const changedData = deepDiff(transformedPayload, normalizedOriginal) || {};
-    // let finalData = { ...changedData };
-    // if (originalData?.id) finalData.id = originalData.id;
+    console.log("✅ Group and Part name validation passed");
 
-    // if (changedData.board_specification || changedData.layer_specifications) {
-    //   const pv = { id: originalVersion.id };
+    const basePayload = {
+      product_name: data.product_name || "",
+      reference_number: data.reference_number || "",
+      client_reference_code: data.client_reference_code || "",
+      description: data.description || "",
+      category: data.category || "SKU",
+      subcategory: data.subcategory || "",
+      stages: data?.stages || "",
+      manufacturer: data.manufacturer || "",
+      stock_unit: data.stock_unit,
+      min_stock_level: data.min_stock_level,
+      reorder_level: data.reorder_level,
+      status: data.status || "active",
+      company_id: data.company_id || "comp-123",
+      created_by: data.created_by || "user-001",
+    };
 
-    //   if (changedData.board_specification) {
-    //     pv.BoardSpecification = {
-    //       id: originalVersion.BoardSpecification?.id,
-    //       ...changedData.board_specification,
-    //     };
-    //   }
+    basePayload.group_part_specifications = data.group_part_specifications || [];
+    basePayload.color_specifications = data.color_specifications || [];
 
-    //   if (changedData.layer_specifications) {
-    //     pv.LayerSpecifications = changedData.layer_specifications.map(
-    //       (layer, i) => ({
-    //         id: originalVersion.LayerSpecifications?.[i]?.id,
-    //         ...layer,
-    //       })
-    //     );
-    //   }
+    basePayload.board_specification = {
+      ply: parseInt(data.board_specifications?.ply) || 2,
+      units: data.board_specifications?.units || "mm",
+      box_length: parseFloat(data.board_specifications?.box_length) || 0,
+      box_width: parseFloat(data.board_specifications?.box_width) || 0,
+      box_height: parseFloat(data.board_specifications?.box_height) || 0,
+      ups: parseFloat(data.board_specifications?.ups) || 0,
+      joints: parseFloat(data.board_specifications?.joints) || 0,
+      deckle_size: parseFloat(data.board_specifications?.deckle_size) || 0,
+      board_length: parseFloat(data.board_specifications?.board_length) || 0,
+      board_width: parseFloat(data.board_specifications?.board_width) || 0,
+      flap_width: parseFloat(data.board_specifications?.flap_width) || 0,
+      length_trimming_tolerance:
+        parseFloat(data.board_specifications?.length_trimming_tolerance) || 0,
+      width_trimming_tolerance:
+        parseFloat(data.board_specifications?.width_trimming_tolerance) || 0,
+      inner_outer_dimension:
+        data.board_specifications?.inner_outer_dimension || "",
+      strict_adherence: data.board_specifications?.strict_adherence || false,
+    };
 
-    //   finalData.ProductVersions = [pv];
+    basePayload.layer_specifications = (data.layer_specifications || []).map(
+      (layer, index) => ({
+        layer_id: index + 1,
+        layer_name: layer.layer_name || "",
+        gsm: parseFloat(layer.gsm) || 0,
+        color_id: layer.color_id || "",
+        bf: parseFloat(layer.bf) || 0,
+        flute_type: layer.flute_type || "",
+        weight: parseFloat(layer.weight) || 0,
+        bursting_strength: parseFloat(layer.bursting_strength) || 0,
+      })
+    );
 
-    //   delete finalData.board_specification;
-    //   delete finalData.layer_specifications;
-    // }
+    basePayload.tax_specifications = {
+      gst_percentage: parseFloat(data.tax_specifications?.gst_percentage) || 0,
+      hsn_code: data.tax_specifications?.hsn_code || "",
+    };
 
-    // console.log("Final Payload with IDs:", finalData);
+    basePayload.route_specifications = (data.route_specifications || []).filter(
+      (r) => r.route_id && r.route_id !== ""
+    );
 
-    // ProductService.update(id, finalData).then((res) => {
-    //   if (res.success) navigate("/sku");
-    //   else alert("Error updating product: " + res.message);
-    // });
+    if (data.subcategory === "Die-Cut") {
+      basePayload.sku_die_specifications = {
+        die_id: data.sku_die_specifications?.die_id,
+        board_length:
+          parseFloat(data.sku_die_specifications?.board_length) || 0,
+        board_width: parseFloat(data.sku_die_specifications?.board_width) || 0,
+        ups: parseFloat(data.sku_die_specifications?.ups) || 0,
+        deckle_size: parseFloat(data.sku_die_specifications?.deckle_size) || 0,
+      };
+    } else if (data.subcategory === "Partition") {
+      basePayload.partition_specifications = {
+        die_id: data.partition_specifications?.die_id || "",
+        columns: parseInt(data.partition_specifications?.columns) || 0,
+        rows: parseInt(data.partition_specifications?.rows) || 0,
+        board_length:
+          parseFloat(data.partition_specifications?.board_length) || 0,
+        board_width:
+          parseFloat(data.partition_specifications?.board_width) || 0,
+        ups: parseFloat(data.partition_specifications?.ups) || 0,
+        deckle_size:
+          parseFloat(data.partition_specifications?.deckle_size) || 0,
+        auto_calc_ratio:
+          parseFloat(data.partition_specifications?.auto_calc_ratio) || 0,
+      };
+    } else if (data.subcategory === "Composite") {
+      basePayload.composite_specifications = {
+        sku_id: data.composite_specifications?.sku_id || "",
+        quantity: data.composite_specifications?.quantity || 0,
+      };
+    }
+
+    basePayload.method_specifications = {
+      method: data.method_specifications?.method || "",
+      wire_type: data.method_specifications?.wire_type || "",
+      number_of_pins: parseInt(data.method_specifications?.number_of_pins) || 0,
+      position: data.method_specifications?.position || "",
+    };
+
+    console.log("Base Payload", basePayload);
+
+    try {
+      if (!id) {
+        let responseData = null;
+
+        if (data.print_documents && data.print_documents.length > 0) {
+          const formData = new FormData();
+          formData.append("data", JSON.stringify(basePayload));
+          printDocuments.forEach((entry) =>
+            formData.append("print_documents", entry.file)
+          );
+
+          const response = await api.post("/products", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          responseData = response.data;
+        } else {
+          responseData = await ProductService.create(basePayload);
+        }
+
+        const created = responseData?.success === true;
+
+        if (!created) {
+          throw new Error(responseData?.message || "Product creation failed");
+        }
+
+        navigate("/sku");
+        return;
+      }
+
+      const originalVersion = originalData?.ProductVersions?.[0] || {};
+      const normalizedOriginal = {
+        product_name: originalData?.product_name || "",
+        reference_number: originalData?.reference_number || "",
+        client_reference_code: originalData?.client_reference_code || "",
+        description: originalData?.description || "",
+        category: originalData?.category || "SKU",
+        subcategory: originalData?.subcategory || "",
+        stages:
+          originalData?.subcategory === "RSC Box"
+            ? "Cutting, Pasting, Packing"
+            : "production",
+        manufacturer: originalData?.manufacturer || "",
+        stock_unit:
+          originalData?.stock_unit ||
+          (originalData?.subcategory === "RSC Box" ? "Piece" : "pcs"),
+        min_stock_level: originalData?.min_stock_level || 0,
+        reorder_level:
+          originalData?.reorder_level ||
+          (originalData?.subcategory === "RSC Box" ? 20 : 100),
+        status: originalData?.status || "active",
+        company_id: originalData?.company_id || "comp-123",
+        created_by: originalData?.created_by || "user-001",
+
+        board_specifications: originalVersion.BoardSpecification || {},
+        layer_specifications: originalVersion.LayerSpecifications || [],
+        tax_specifications: {
+          gst_percentage: originalVersion.ProductTax?.gst_percentage || 0,
+          hsn_code: originalVersion.ProductTax?.hsn_code || 0,
+        },
+        route_specifications: originalVersion.ProductRoute || [],
+        method_specifications: {
+          method: originalVersion.MethodSpecification?.method || "",
+          wire_type: originalVersion.MethodSpecification?.wire_type || "",
+          number_of_pins:
+            originalVersion.MethodSpecification?.number_of_pins || "",
+          position: originalVersion.MethodSpecification?.position || "",
+        },
+        sku_die_specifications: originalVersion.SkuDieSpecification || {},
+        partition_specifications: {
+          die_id: originalVersion.PartitionSpecification?.die_id || "",
+          board_length:
+            originalVersion.PartitionSpecification?.board_length || "",
+          board_width:
+            originalVersion.PartitionSpecification?.board_width || "",
+          columns: originalVersion.PartitionSpecification?.columns || "",
+          rows: originalVersion.PartitionSpecification?.rows || "",
+          ups: originalVersion.PartitionSpecification?.ups || "",
+          auto_calc_ratio:
+            originalVersion.PartitionSpecification?.auto_calc_ratio || "",
+        },
+        composite_specifications: originalVersion.CompositeSkuSpecification?.[0]
+          ? {
+              sku_id:
+                originalVersion.CompositeSkuSpecification[0]
+                  .sku_product_version_id || "",
+              quantity:
+                originalVersion.CompositeSkuSpecification[0].quantity || "",
+            }
+          : { sku_id: "", quantity: "" },
+        die_sku_layouts: originalVersion.DieSkuLayouts || [],
+        print_documents: (originalVersion.PrintDocuments || []).map((d) => ({
+          id: d.id,
+          name: d.name,
+          size: d.size,
+          uploaded: !!d.uploaded,
+        })),
+        group_specifications: originalVersion.GroupSpecifications || [],
+        parts_specifications: originalVersion.PartsSpecifications || [],
+      };
+
+      const changedData = deepDiff(basePayload, normalizedOriginal) || {};
+      const finalUpdateData = {
+        ...(changedData.product_name && {
+          product_name: changedData.product_name,
+        }),
+        ...(changedData.reference_number && {
+          reference_number: changedData.reference_number,
+        }),
+        ...(changedData.client_reference_code && {
+          client_reference_code: changedData.client_reference_code,
+        }),
+        ...(changedData.description && {
+          description: changedData.description,
+        }),
+        ...(changedData.category && { category: changedData.category }),
+        ...(changedData.subcategory && {
+          subcategory: changedData.subcategory,
+        }),
+        ...(changedData.stages && { stages: changedData.stages }),
+        ...(changedData.manufacturer && {
+          manufacturer: changedData.manufacturer,
+        }),
+        ...(changedData.stock_unit && { stock_unit: changedData.stock_unit }),
+        ...(changedData.min_stock_level !== undefined && {
+          min_stock_level: changedData.min_stock_level,
+        }),
+        ...(changedData.reorder_level !== undefined && {
+          reorder_level: changedData.reorder_level,
+        }),
+        ...(changedData.status && { status: changedData.status }),
+
+        ProductVersions: [
+          {
+            id: originalVersion.id,
+            version_name: originalVersion.version_name,
+            description: originalVersion.description,
+
+            ...(changedData.board_specification && {
+              board_specification: changedData.board_specification,
+            }),
+            ...(changedData.layer_specifications && {
+              layer_specifications: changedData.layer_specifications,
+            }),
+            ...(changedData.tax_specifications && {
+              tax_specifications: changedData.tax_specifications,
+            }),
+            ...(changedData.route_specifications && {
+              route_specifications: changedData.route_specifications,
+            }),
+            ...(changedData.method_specifications && {
+              method_specifications: changedData.method_specifications,
+            }),
+            ...(changedData.sku_die_specifications && {
+              sku_die_specifications: changedData.sku_die_specifications,
+            }),
+            ...(changedData.partition_specifications && {
+              partition_specifications: changedData.partition_specifications,
+            }),
+            ...(changedData.composite_specifications && {
+              composite_specifications: changedData.composite_specifications,
+            }),
+          },
+        ],
+      };
+
+      console.log("finalUpdateData   =     ", finalUpdateData);
+
+      const updateFormData = new FormData();
+      updateFormData.append("data", JSON.stringify(finalUpdateData));
+
+      if (data.print_documents && data.print_documents.length > 0) {
+        data.print_documents.forEach((file) => {
+          if (file instanceof File) {
+            updateFormData.append("print_documents", file);
+          }
+        });
+      }
+
+      const updateResponse = await ProductService.update(id, updateFormData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const updated =
+        updateResponse &&
+        (updateResponse.success === true ||
+          updateResponse.success === "true" ||
+          updateResponse.success === 1 ||
+          updateResponse.success === "1");
+
+      if (!updated) {
+        throw new Error(updateResponse?.message || "Product update failed");
+      }
+
+      navigate("/sku");
+    } catch (err) {
+      console.error("Error submitting form:", err);
+      alert(err?.message || "Failed to submit SKU");
+    }
   };
 
   return (
     <div>
-      <FormLayout
-        title={id ? "Edit SKU" : "Add New SKU"}
-        subtitle={id ? "Update SKU details" : "Create a new sku"}
-        onCancel={() => navigate("/sku")}
-        onSubmit={handleSubmit(handleFormSubmit)}
-        submitText={id ? "Update SKU" : "Create SKU"}
-      >
-        <div className="card-corrugated p-4 flex flex-col">
-          <div className="mb-4 pb-2 border-b border-manufacturing-200">
-            <h3 className="text-base font-medium text-manufacturing-800 flex items-center">
-              <div className="bg-primary-100 rounded-full p-1 mr-2">
-                <Truck className="h-3 w-3 text-primary-600" />
-              </div>
-              SKU Information
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                Sku Type *
-              </label>
-              <select
-                {...register("subcategory", {
-                  required: "SKU Type is required",
-                })}
-                onChange={(e) => {
-                  reset((prev) => ({
-                    ...prev,
-                    subcategory: e.target.value,
-                  }));
-                }}
-                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
-                  errors.subcategory ? "border-red-500" : "border-gray-300"
-                }`}
-              >
-                <option value="">Select SKU Type</option>
-                <option value="RSC Box">RSC Box</option>
-                <option value="Die">Die-Cut Box</option>
-              </select>
-              {errors.subcategory && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.subcategory.message}
-                </p>
-              )}
-            </div>
-
-            {[
-              { label: "SKU Name *", name: "product_name", type: "text" },
-              { label: "Client Name *", name: "manufacturer", type: "text" },
-              {
-                label: "Client Reference Code *",
-                name: "client_reference_code",
-                type: "text",
-              },
-              {
-                label: "Reference Number *",
-                name: "reference_number",
-                type: "text",
-              },
-            ].map((field) => (
-              <div key={field.name}>
-                <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                  {field.label}
-                </label>
-                <input
-                  type={field.type}
-                  {...register(field.name, {
-                    required: field.label.includes("*")
-                      ? `${field.label.replace("*", "").trim()} is required`
-                      : false,
-                  })}
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
-                    errors[field.name] ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder={`Enter ${field.label
-                    .replace("*", "")
-                    .toLowerCase()}`}
-                />
-                {errors[field.name] && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors[field.name].message}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {selectedSubcategory === "Die" && (
-          <DieInformation
+      <FormProvider {...methods}>
+        <FormLayout
+          title={id ? "Edit SKU" : "Add New SKU"}
+          subtitle={id ? "Update SKU details" : "Create a new sku"}
+          onCancel={() => navigate("/sku")}
+          onSubmit={handleSubmit(handleFormSubmit)}
+          submitText={id ? "Update SKU" : "Create SKU"}
+        >
+          <SkuInformation
             register={register}
             errors={errors}
-            dieProducts={dieProducts}
-            setValue={setValue}
+            reset={reset}
             watch={watch}
+            setValue={setValue}
+            clientList={clientList}
+            taxes={taxes}
           />
-        )}
 
-        {selectedSubcategory !== "Die" && (
-          <>
-            <BoardInformation
+          <BoardInformation
+            register={register}
+            errors={errors}
+            watch={watch}
+            setValue={setValue}
+            handleInputChange={handleInputChange}
+            handleUnitChange={handleUnitChange}
+            helperBoard={helperBoard}
+            control={control}
+            routes={routes}
+            selectedPrintType={selectedPrintType}
+          />
+          {selectedPrintType !== "" && (
+            <div className="card-corrugated p-4 flex flex-col mt-4">
+              {/* Section Header */}
+              <div className="mb-4 pb-2 border-b border-manufacturing-200">
+                <h3 className="text-base font-medium text-manufacturing-800 flex items-center">
+                  <div className="bg-primary-100 rounded-full p-1 mr-2">
+                    <FileText className="h-3 w-3 text-primary-600" />
+                  </div>
+                  Print Documents
+                </h3>
+              </div>
+
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.add(
+                    "border-blue-500",
+                    "bg-blue-50"
+                  );
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove(
+                    "border-blue-500",
+                    "bg-blue-50"
+                  );
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove(
+                    "border-blue-500",
+                    "bg-blue-50"
+                  );
+                  handleUpload(Array.from(e.dataTransfer.files || []));
+                }}
+              >
+                <div className="space-y-2">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                  <div>
+                    <label
+                      htmlFor="documents-upload"
+                      className="cursor-pointer"
+                    >
+                      <span className="text-sm font-medium text-primary-600 hover:text-primary-500">
+                        Upload print documents
+                      </span>
+                      <input
+                        id="documents-upload"
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        onChange={handleFileInput}
+                        className="sr-only"
+                      />
+                    </label>
+                    <span className="text-sm text-gray-500">
+                      {" "}
+                      or drag and drop
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PDF, JPG, PNG, WEBP up to 10MB each (max 10 files)
+                  </p>
+                </div>
+              </div>
+              {printDocuments.length > 0 && (
+                <div className="space-y-3 mt-4">
+                  {printDocuments.map((document) => (
+                    <div
+                      key={document.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {document.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(document.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemove(document.id)}
+                        className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                        title="Remove document"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedSubcategory === "Die-Cut" && (
+            <DieInformation
               register={register}
               errors={errors}
-              handleInputChange={handleInputChange}
-              handleUnitChange={handleUnitChange}
-              helperBoard={helperBoard}
+              dieProducts={dieProducts}
+              setValue={setValue}
+              getValues={getValues}
+              watch={watch}
+              control={control}
             />
-            <LayerConfiguration
+          )}
+          {selectedSubcategory === "Partition" && (
+            <PartitionInformation
+              register={register}
+              dieProducts={dieProducts}
+            />
+          )}
+
+          {selectedSubcategory !== "" && (
+            <GroupPartSection
+              selectedSubcategory={selectedSubcategory}
+              groups={groups}
+              editingGroupId={editingGroupId}
+              setEditingGroupId={setEditingGroupId}
+              groupNameInput={groupNameInput}
+              setGroupNameInput={setGroupNameInput}
+              editingPartId={editingPartId}
+              setEditingPartId={setEditingPartId}
+              partNameInput={partNameInput}
+              setPartNameInput={setPartNameInput}
+              addGroup={addGroup}
+              addPart={addPart}
+              removeGroup={removeGroup}
+              removePart={removePart}
+              updateGroupName={updateGroupName}
+              updatePartName={updatePartName}
+              skuList={skuList}
+              register={register}
+              errors={errors}
               fields={fields}
               layers={layers}
               selectedPly={selectedPly}
               plyOptions={plyOptions}
-              fluteTypes={fluteTypes}
-              errors={errors}
               watch={watch}
-              register={register}
               setValue={setValue}
               updateLayer={updateLayer}
               copyFromPreviousLayer={copyFromPreviousLayer}
@@ -988,11 +1719,16 @@ const AddSku = () => {
               isCorrugationLayer={isCorrugationLayer}
               totalWeight={totalWeight}
               totalBurstingStrength={totalBurstingStrength}
-              readOnly={isStrictAdherence}
+              isStrictAdherence={isStrictAdherence}
+              routes={routes}
+              flutes={flutes}
+              colors={colors}
+              control={control}
+              setGroups={setGroups}
             />
-          </>
-        )}
-      </FormLayout>
+          )}
+        </FormLayout>
+      </FormProvider>
     </div>
   );
 };

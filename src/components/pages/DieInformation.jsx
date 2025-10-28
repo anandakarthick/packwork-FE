@@ -1,66 +1,26 @@
 import { CircuitBoard } from "lucide-react";
-import { useEffect, useMemo } from "react";
-import BoardVisualization from "./BoardVisualization";
+import { useEffect } from "react";
 
 const DieInformation = ({ register, errors, dieProducts, setValue, watch }) => {
-  const selectedDieId = watch("die_specifications.die_id");
-  const blankLength = watch("die_specifications.blank_length");
-  const blankWidth = watch("die_specifications.blank_width");
-  const upsLength = watch("die_specifications.ups_length");
-  const upsWidth = watch("die_specifications.ups_width");
-
-  const boardLength = watch("die_specifications.board_length");
-  const boardWidth = watch("die_specifications.board_width");
-  const totalBlanks = watch("die_specifications.total_blanks");
-
-  useEffect(() => {
-    if (blankLength && upsLength) {
-      setValue("die_specifications.board_length", blankLength * upsLength);
-    }
-    if (blankWidth && upsWidth) {
-      setValue("die_specifications.board_width", blankWidth * upsWidth);
-    }
-    if (upsLength && upsWidth) {
-      setValue("die_specifications.total_blanks", upsLength * upsWidth);
-    }
-  }, [blankLength, blankWidth, upsLength, upsWidth, setValue]);
+  const selectedDieId = watch("sku_die_specifications.die_id");
 
   useEffect(() => {
     if (selectedDieId) {
       const selectedDie = dieProducts.find((p) => p.id === selectedDieId);
+      const version = selectedDie?.ProductVersions?.[0];
+      const dieSpec = version?.ProductDieSpecification?.[0]?.DieSpecification;
 
-      if (selectedDie && selectedDie.ProductVersions?.length) {
-        const version = selectedDie.ProductVersions[0];
-        const dieSpec = version.ProductDieSpecification?.[0]?.DieSpecification;
+      if (dieSpec) {
+        setValue("sku_die_specifications.board_length", dieSpec.board_length);
+        setValue("sku_die_specifications.board_width", dieSpec.board_width);
 
-        if (dieSpec) {
-          setValue("die_specifications.blank_length", dieSpec.board_length);
-          setValue("die_specifications.blank_width", dieSpec.board_width);
-          setValue("die_specifications.impressions", dieSpec.impressions);
-          setValue("die_specifications.ups_length", dieSpec.ups_length || 1);
-          setValue("die_specifications.ups_width", dieSpec.ups_width || 1);
-        }
+        setValue("sku_die_specifications.ups", dieSpec.ups || 1);
+        const deckle_size =
+          (dieSpec.board_length + dieSpec.board_width) * dieSpec.ups;
+        setValue("sku_die_specifications.deckle_size", deckle_size);
       }
     }
   }, [selectedDieId, dieProducts, setValue]);
-
-  const productionConfig = useMemo(() => {
-    if (!boardLength || !boardWidth) return null;
-
-    return {
-      actualBoardLength: Number(boardLength),
-      actualBoardWidth: Number(boardWidth),
-      upsAlongLength: Number(upsLength) || 1,
-      upsAlongWidth: Number(upsWidth) || 1,
-      totalBlanks: Number(totalBlanks) || 1,
-    };
-  }, [boardLength, boardWidth, upsLength, upsWidth, totalBlanks]);
-
-  const selectedDie = useMemo(() => {
-    return selectedDieId
-      ? dieProducts.find((p) => p.id === selectedDieId)
-      : null;
-  }, [selectedDieId, dieProducts]);
 
   return (
     <div>
@@ -78,124 +38,89 @@ const DieInformation = ({ register, errors, dieProducts, setValue, watch }) => {
           <div>
             <label className="block text-xs font-medium">Select Die *</label>
             <select
-              {...register("die_specifications.die_id", { required: true })}
+              {...register("sku_die_specifications.die_id", { required: true })}
               className="w-full px-3 py-2 text-sm border rounded-lg"
             >
               <option value="">Select Die</option>
               {dieProducts.map((product) => {
-                const version = product.ProductVersions?.[0];
-                const dieSpec =
-                  version?.ProductDieSpecification?.[0]?.DieSpecification;
+                // const version = product.ProductVersions?.[0];
+                // const dieSpec =
+                //   version?.ProductDieSpecification?.[0]?.DieSpecification;
 
                 return (
                   <option key={product.id} value={product.id}>
                     {product.product_name}
-                    {dieSpec
+                    {/* {dieSpec
                       ? ` (${dieSpec.board_length} x ${dieSpec.board_width})`
-                      : ""}
+                      : ""} */}
                   </option>
                 );
               })}
             </select>
-            {errors?.die_specifications?.die_id && (
+            {errors?.sku_die_specifications?.die_id && (
               <p className="text-xs text-red-500 mt-1">Please select a die</p>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-medium">Blank Length *</label>
+            <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+              Board Dimensions{" "}
+              <span className="text-gray-500 text-xs">(W × L)</span>
+              <span className="text-gray-500 ml-1">*</span>
+            </label>
+
+            <div
+              className={`h-10 px-2 rounded-md flex items-center justify-between bg-white ${
+                errors?.board_specifications?.board_width ||
+                errors?.board_specifications?.board_length
+                  ? "border-2 border-red-500"
+                  : "border border-gray-300"
+              }`}
+            >
+              <input
+                type="number"
+                {...register("sku_die_specifications.board_width", {
+                  required: true,
+                })}
+                className="w-[45%] px-2 py-1 text-center text-xs focus:outline-none bg-gray-50 rounded"
+                placeholder="W"
+                readOnly
+              />
+              <span className="text-gray-500 text-xs">×</span>
+              <input
+                type="number"
+                {...register("sku_die_specifications.board_length", {
+                  required: true,
+                })}
+                className="w-[45%] px-2 py-1 text-center text-xs focus:outline-none bg-gray-50 rounded"
+                placeholder="L"
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium">UPS *</label>
             <input
               type="number"
-              readOnly
-              {...register("die_specifications.blank_length", {
+              {...register("sku_die_specifications.ups", { required: true })}
+              className="w-full px-3 py-2 text-sm border rounded-lg"
+              placeholder="Enter UPS"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium">Deckle Size *</label>
+            <input
+              type="number"
+              {...register("sku_die_specifications.deckle_size", {
                 required: true,
               })}
               className="w-full px-3 py-2 text-sm border rounded-lg"
-              placeholder="Enter Blank Length"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium">Blank Width *</label>
-            <input
-              type="number"
-              readOnly
-              {...register("die_specifications.blank_width", {
-                required: true,
-              })}
-              className="w-full px-3 py-2 text-sm border rounded-lg"
-              placeholder="Enter Blank Width"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium">UPS Length *</label>
-            <input
-              type="number"
-              {...register("die_specifications.ups_length", { required: true })}
-              className="w-full px-3 py-2 text-sm border rounded-lg"
-              placeholder="Enter UPS Length"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium">UPS Width *</label>
-            <input
-              type="number"
-              {...register("die_specifications.ups_width", { required: true })}
-              className="w-full px-3 py-2 text-sm border rounded-lg"
-              placeholder="Enter UPS Width"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium">Board Length</label>
-            <input
-              type="number"
-              value={boardLength || ""}
-              readOnly
-              className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium">Board Width</label>
-            <input
-              type="number"
-              value={boardWidth || ""}
-              readOnly
-              className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium">Total Blanks</label>
-            <input
-              type="number"
-              value={totalBlanks || ""}
-              readOnly
-              className="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100"
+              placeholder="Enter Deckle Size"
             />
           </div>
         </div>
       </div>
-
-      {productionConfig && (
-        <div className="mt-6">
-          <BoardVisualization
-            dieData={{
-              product_name: selectedDie?.product_name || "Blank",
-              blankLength,
-              blankWidth,
-              boardLength: productionConfig.actualBoardLength,
-              boardWidth: productionConfig.actualBoardWidth,
-              upsLength: productionConfig.upsAlongLength,
-              upsWidth: productionConfig.upsAlongWidth,
-              totalBlanks: productionConfig.totalBlanks,
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 };

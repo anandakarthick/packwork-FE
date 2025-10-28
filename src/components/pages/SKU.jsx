@@ -4,30 +4,57 @@ import CommonTable from "../tables/CommonTable";
 import { useNavigate } from "react-router-dom";
 import { Truck } from "lucide-react";
 import { ProductService } from "../../services/ProductServices";
+import Pagination from "../tables/Pagination";
 
 const SKU = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [skuData, setSkuData] = useState([]);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pages: 1,
+    total: 0,
+    limit: 20,
+  });
+
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 20,
+    categoryFilter: "sku",
+  });
 
   useEffect(() => {
     fetchSkuData();
-  },[]);
+  }, [filters.page, filters.limit]);
 
   const fetchSkuData = async () => {
     setLoading(true);
     try {
-      const response = await ProductService.getAll({ categoryFilter: "sku" });
-      setSkuData(response?.data?.products || []);
+       const response = await ProductService.getAll(filters);
+      setSkuData(
+        response?.data?.products.filter(
+          (product) =>
+            product.subcategory !== "Group" &&
+            product.subcategory !== "Part" &&
+            product.subcategory !== null
+        ) || []
+      );
+      const p = response?.data?.pagination;
+      if (p) {
+        setPagination({
+          current: p.page,
+          pages: p.pages,
+          total: p.total,
+          limit: p.limit,
+        });
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
       setLoading(false);
     }
   };
-
-
 
   const handleSearch = (searchTerm) => {
     setSearchTerm(searchTerm);
@@ -40,26 +67,26 @@ const SKU = () => {
     console.log("Import clicked");
   };
 
- const handleDelete = async (row) => {
-     if (window.confirm("Are you sure you want to delete this sku?")) {
-       setLoading(true);
-       ProductService.delete(row.id)
-         .then((response) => {
-           if (response.success) {
-             fetchSkuData();
-           } else {
-             alert(response.message || "Failed to delete sku");
-           }
-         })
-         .catch((error) => {
-           console.error("Error deleting sku:", error);
-           alert("Failed to delete sku");
-         })
-         .finally(() => {
-           setLoading(false);
-         });
-     }
-   };
+  const handleDelete = async (row) => {
+    if (window.confirm("Are you sure you want to delete this sku?")) {
+      setLoading(true);
+      ProductService.delete(row.id)
+        .then((response) => {
+          if (response.success) {
+            fetchSkuData();
+          } else {
+            alert(response.message || "Failed to delete sku");
+          }
+        })
+        .catch((error) => {
+          console.error("Error deleting sku:", error);
+          alert("Failed to delete sku");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  };
 
   const columns = [
     { key: "product_id", label: "ID" },
@@ -96,6 +123,11 @@ const SKU = () => {
         onView={(row) => navigate(`/view-sku/${row.id}`)}
         onEdit={(row) => navigate(`/edit-sku/${row.id}`)}
         onDelete={(row) => handleDelete(row)}
+      />
+      <Pagination
+        pagination={pagination}
+        filters={filters}
+        setFilters={setFilters}
       />
     </div>
   );

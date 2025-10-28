@@ -28,8 +28,17 @@ const Product = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await ProductService.getAll({ categoryFilter: "product" });
-      setProducts(response?.data?.products || []);
+      const response = await ProductService.getAll({
+        categoryFilter: "product",
+      });
+      setProducts(
+        response?.data?.products.filter(
+          (product) =>
+            product.subcategory !== "Group" &&
+            product.subcategory !== "Part" &&
+            product.subcategory !== null
+        ) || []
+      );
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {

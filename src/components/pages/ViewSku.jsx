@@ -20,31 +20,13 @@ const ViewSku = () => {
     fetchSKU();
   }, [id]);
 
-  const renderFields = (data) => {
+  const renderFields = (data, excludeKeys = []) => {
     if (!data) return null;
 
     return (
       <div className="grid grid-cols-2 gap-3">
         {Object.entries(data)
-          .filter(
-            ([key]) =>
-              ![
-                "id",
-                "product_id",
-                "product_version_id",
-                "company_id",
-                "created_by",
-                "updated_by",
-                "created_at",
-                "updated_at",
-                "deleted_at",
-                "is_active",
-                "status",
-                "is_deleted",
-                "die_id",
-                "stages",
-              ].includes(key)
-          )
+          .filter(([key]) => !excludeKeys.includes(key))
           .filter(([, value]) => typeof value !== "object")
           .map(([key, value]) => (
             <div key={key}>
@@ -62,7 +44,13 @@ const ViewSku = () => {
 
   const productVersion = skuData.ProductVersions?.[0] || {};
   const boardSpec = productVersion.BoardSpecification || {};
-  const layerSpecs = productVersion.LayerSpecifications || [];
+  const layerSpecs = (productVersion.LayerSpecifications || []).sort(
+    (a, b) => a.layer_id - b.layer_id
+  );
+  const dieSpec =
+    productVersion.ProductDieSpecification?.[0]?.DieSpecification || {};
+  const dieLayouts = productVersion.ProductDieSpecification || [];
+  const productPieces = productVersion.ProductPieces || [];
 
   const totalWeight = layerSpecs.reduce((sum, l) => sum + (l.weight || 0), 0);
   const totalBurstingStrength = layerSpecs.reduce(
@@ -116,15 +104,85 @@ const ViewSku = () => {
           <h3 className="text-base font-medium text-gray-800 mb-3 border-b pb-2">
             Product Details
           </h3>
-          {renderFields(skuData)}
+          {renderFields(skuData, [
+            "id",
+            "product_id",
+            "product_version_id",
+            "company_id",
+            "created_by",
+            "updated_by",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "is_active",
+            "status",
+            "is_deleted",
+            "stages",
+          ])}
         </div>
 
-        {productVersion?.BoardSpecification && (
+        {boardSpec && Object.keys(boardSpec).length > 0 && (
           <div className="card-corrugated p-4">
             <h3 className="text-base font-medium text-gray-800 mb-3 border-b pb-2">
               Board Specification
             </h3>
-            {renderFields(boardSpec)}
+            {renderFields(boardSpec, [
+              "id",
+              "product_version_id",
+              "company_id",
+              "created_by",
+              "updated_by",
+              "created_at",
+              "updated_at",
+              "is_active",
+              "strict_adherence",
+            ])}
+          </div>
+        )}
+
+        {/* Die-Cut Specification */}
+        {dieSpec && Object.keys(dieSpec).length > 0 && (
+          <div className="card-corrugated p-4">
+            <h3 className="text-base font-medium text-gray-800 mb-3 border-b pb-2">
+              Die-Cut Specification
+            </h3>
+            {renderFields(dieSpec, [
+              "id",
+              "product_version_id",
+              "company_id",
+              "created_by",
+              "updated_by",
+              "created_at",
+              "updated_at",
+              "is_active",
+            ])}
+          </div>
+        )}
+
+        {/* Die SKU Layouts - Separate Card */}
+        {productPieces.length > 0 && (
+          <div className="card-corrugated p-4">
+            <h3 className="text-base font-medium text-gray-800 mb-3 border-b pb-2">
+              Die SKU Layouts
+            </h3>
+            <table className="min-w-full divide-y divide-gray-200 mb-4 text-xs">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-2 py-2 text-left font-medium">SKU</th>
+                  <th className="px-2 py-2 text-left font-medium">UPS</th>
+                  <th className="px-2 py-2 text-left font-medium">Weight</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {productPieces.map((layout) => (
+                  <tr key={layout.id}>
+                    <td className="px-2 py-2">{layout.piece_product_parts}</td>
+                    <td className="px-2 py-2">{layout.ups}</td>
+                    <td className="px-2 py-2">{layout.weight ?? "--"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
