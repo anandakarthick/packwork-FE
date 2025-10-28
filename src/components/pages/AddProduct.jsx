@@ -121,7 +121,7 @@ const AddProduct = () => {
             }
           : { board_length: "", board_width: "", impressions: "", ups: "" },
 
-        ProductVersion: [
+        ProductVersions: [
           {
             id: version.id,
             ReelSpecification: version.ReelSpecification
@@ -238,7 +238,7 @@ const AddProduct = () => {
       changedData.wire_specifications ||
       changedData.die_specifications
     ) {
-      const originalVersion = originalData?.ProductVersion?.[0] || {};
+      const originalVersion = originalData?.ProductVersions?.[0] || {};
       const pv = {
         id: originalVersion.id,
       };
@@ -285,7 +285,7 @@ const AddProduct = () => {
         ];
       }
 
-      finalData.ProductVersion = [pv];
+      finalData.ProductVersions = [pv];
 
       delete finalData.reel_specifications;
       delete finalData.layer_specifications;
@@ -311,7 +311,7 @@ const AddProduct = () => {
     ],
     Returnable: [
       { value: "Die", label: "Die" },
-      { value: "Stereo", label: "Stereo" },
+      // { value: "Stereo", label: "Stereo" },
     ],
     "Finished-goods": [],
     "Semi-Finished-goods": [],
@@ -340,6 +340,63 @@ const AddProduct = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+              Category *
+            </label>
+            <select
+              {...register("category", { required: "Category is required" })}
+              onChange={(e) => {
+                const currentValues = watch();
+                reset({
+                  ...currentValues,
+                  category: e.target.value,
+                  subcategory: "",
+                });
+              }}
+              className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                errors.category ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Select Category</option>
+              <option value="Raw-materials">Raw Materials</option>
+              <option value="Returnable">Returnable</option>
+              <option value="Finished-goods">Finished Goods</option>
+              <option value="Semi-Finished-goods">Semi-Finished Goods</option>
+            </select>
+            {errors.category && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.category.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+              Subcategory *
+            </label>
+            <select
+              {...register("subcategory", {
+                required: "subcategory is required",
+              })}
+              className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
+                errors.subcategory ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Select Subcategory</option>
+              {subcategories[category]?.map((sub) => (
+                <option key={sub.value} value={sub.value}>
+                  {sub.label}
+                </option>
+              ))}
+            </select>
+            {errors.subcategory && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.subcategory.message}
+              </p>
+            )}
+          </div>
+          <div></div><div></div>
           {[
             { label: "Product Name *", name: "product_name", type: "text" },
             {
@@ -421,65 +478,6 @@ const AddProduct = () => {
               </p>
             )}
           </div>
-
-          <div>
-            <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-              Category *
-            </label>
-            <select
-              {...register("category", { required: "Category is required" })}
-              onChange={(e) => {
-                const currentValues = watch();
-                reset({
-                  ...currentValues,
-                  category: e.target.value,
-                  subcategory: "",
-                });
-              }}
-              className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
-                errors.category ? "border-red-500" : "border-gray-300"
-              }`}
-            >
-              <option value="">Select Category</option>
-              <option value="Raw-materials">Raw Materials</option>
-              <option value="Returnable">Returnable</option>
-              <option value="Finished-goods">Finished Goods</option>
-              <option value="Semi-Finished-goods">Semi-Finished Goods</option>
-            </select>
-            {errors.category && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.category.message}
-              </p>
-            )}
-          </div>
-
-          {category && (
-            <div>
-              <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                Subcategory *
-              </label>
-              <select
-                {...register("subcategory", {
-                  required: "subcategory is required",
-                })}
-                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-corrugated-500 ${
-                  errors.subcategory ? "border-red-500" : "border-gray-300"
-                }`}
-              >
-                <option value="">Select Subcategory</option>
-                {subcategories[category]?.map((sub) => (
-                  <option key={sub.value} value={sub.value}>
-                    {sub.label}
-                  </option>
-                ))}
-              </select>
-              {errors.subcategory && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.subcategory.message}
-                </p>
-              )}
-            </div>
-          )}
 
           <div>
             <label className="block text-xs font-medium text-manufacturing-700 mb-1">

@@ -1,8 +1,9 @@
-import { Eye, EyeOff, Package } from "lucide-react";
+import { Eye, EyeOff, Loader, Package } from "lucide-react";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { setAuthToken } from "../../../services/api";
 
 const LoginPage = () => {
   const [userType, setUserType] = useState("admin");
@@ -21,7 +22,35 @@ const LoginPage = () => {
 
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
-    navigate("/");
+    const { email, password } = data;
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("https://api-dev-packworx.pazl.info/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Login failed");
+      }
+
+      const result = await response.json();
+      console.log("Login Response:", result);
+      const token = result?.data?.token;
+      if (token) {
+        setAuthToken(token);
+      }
+
+      toast.success("Login successful!");
+      navigate("/clients");
+    } catch (error) {
+      console.error("Login Error:", error);
+      toast.error("Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -198,11 +227,11 @@ const LoginPage = () => {
             </div>
           )}
 
-          <div className="text-center">
+          {/* <div className="text-center">
             <Link to="/" className="text-sm text-gray-600 hover:text-blue-500">
               ← Back to Home
             </Link>
-          </div>
+          </div> */}
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h3 className="text-sm font-medium text-blue-800 mb-2">
@@ -210,14 +239,14 @@ const LoginPage = () => {
             </h3>
             {userType === "super_admin" ? (
               <div className="text-xs text-blue-600">
-                <p>Email: admin@packworkx.com</p>
-                <p>Password: SuperAdmin@123</p>
+                <p>Email: admin@packworx.com</p>
+                <p>Password: admin@packworx.com</p>
               </div>
             ) : (
               <div className="text-xs text-blue-600">
                 <p>Create a new account or use:</p>
-                <p>Email: demo@company.com</p>
-                <p>Password: demo123</p>
+                <p>Email: admin@packworx.com</p>
+                <p>Password: admin@packworx.com</p>
               </div>
             )}
           </div>
