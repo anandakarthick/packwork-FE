@@ -62,6 +62,7 @@ export const ClientService = {
   createCustomerAddress: async (data, id) => {
     try {
       const response = await api.post(`/customer/${id}/addresses`, data);
+
       return response.data;
     } catch (error) {
       console.error("Error creating billing address:", error);
@@ -71,6 +72,7 @@ export const ClientService = {
   updateCustomerAddress: async (id, data) => {
     try {
       const response = await api.put(`/customer/addresses/${id}`, data);
+
       return response.data;
     } catch (error) {
       console.error("Error updating billing address:", error);
@@ -99,7 +101,7 @@ export const ClientService = {
   },
   deleteAddress: async (id) => {
     try {
-      const response = await api.delete(`/addresses/${id}`);
+      const response = await api.delete(`customer/addresses/${id}`);
       return response.data;
     } catch (error) {
       console.error("Error deleting address:", error);

@@ -22,6 +22,7 @@ import {
 import toast from "react-hot-toast";
 import CustomFieldManager from "./CustomFieldManager";
 import { CommonService } from "../../services/CommonServices";
+import { ClientService } from "../../services/ClientServices";
 
 const SupplierForm = ({
   register,
@@ -47,6 +48,8 @@ const SupplierForm = ({
   setCountries,
   setStates,
   setCities,
+  getValues,
+  id,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -136,19 +139,42 @@ const SupplierForm = ({
     setModalSelectedFiles((prev) => [...prev, ...files]);
   };
 
-  const removeDocument = (documentId) => {
-    setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
-    toast.success("Document removed successfully!");
+  const removeDocument = (document) => {
+    console.log(document);
+    if (document?.document_id) {
+      ClientService.deleteCustomerDocumentsLinks(document.id);
+      CommonService.deleteDocuemnts(document.document_id);
+      setUploadedDocuments((prev) =>
+        prev.filter((doc) => doc.id !== document.id)
+      );
+      toast.success("Document removed successfully!");
+    } else {
+      setUploadedDocuments((prev) =>
+        prev.filter((doc) => doc.id !== document.id)
+      );
+      toast.success("Document removed successfully!");
+    }
   };
 
   const handlePreview = (document) => {
-    // Create object URL for preview
-    const fileUrl = URL.createObjectURL(document.file);
+    console.log(document);
+    let fileUrl = "";
+    if (document.file instanceof File) {
+      fileUrl = URL.createObjectURL(document.file);
+    } else if (document.document_id) {
+      fileUrl = document.url;
+    } else {
+      toast.error("Preview not available for this file");
+      return;
+    }
+
     setPreviewFile({
       url: fileUrl,
       type: document.type,
-      name: document.name,
+      name: document.name || document.originalName || "Document",
+      isFromServer: !!document.url,
     });
+
     setShowPreview(true);
   };
 
@@ -231,33 +257,55 @@ const SupplierForm = ({
       fetchStates(singleCountryId, 0);
     }
   }, [countries]);
+  // ✅ Fetch states & cities for existing address values in edit mode
+  useEffect(() => {
+    if (!fields || fields.length === 0) return;
+
+    fields.forEach((field, index) => {
+      const countryId = getValues(`addresses.${index}.country_id`);
+      const stateId = getValues(`addresses.${index}.state_id`);
+      const cityId = getValues(`addresses.${index}.city_id`);
+
+      // If we have a country ID, fetch its states
+      if (countryId) {
+        fetchStates(countryId, index).then(async () => {
+          // After states loaded, if we have a state ID, fetch its cities
+          if (stateId) {
+            await fetchCities(stateId, index);
+
+            // Small delay ensures cities are rendered before setting value
+            setTimeout(() => {
+              if (cityId) {
+                setValue(`addresses.${index}.city_id`, cityId);
+              }
+            }, 100);
+          }
+        });
+      }
+    });
+  }, [fields, getValues]); // run when editing form fields load
 
   return (
     <>
       <div className="space-y-4">
         {/* Customer ID Preview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div className="w-full bg-primary-50 border border-primary-200 rounded-lg p-3 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Hash className="h-4 w-4 text-primary-600" />
-              <div>
-                <h4 className="text-xs font-medium text-primary-800">
-                  {customer_type
-                    ? `${customer_type
-                        .charAt(0)
-                        .toUpperCase()}${customer_type.slice(1)} ID`
-                    : "Customer ID"}
-                </h4>
-                <p className="text-xs text-primary-600">Auto-generated</p>
+          {id && (
+            <div className="w-full bg-primary-50 border border-primary-200 rounded-lg p-3 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary-600" />
+                <div>
+                  <h4 className="text-xs font-medium text-primary-800">
+                    Supplier ID
+                  </h4>
+                  <p className="text-xs text-primary-600">Auto-generated</p>
+                </div>
+              </div>
+              <div className="text-base font-semibold text-primary-700 font-mono">
+                {watch("customer_reference_number") || "VEN#001"}
               </div>
             </div>
-            <div className="text-base font-semibold text-primary-700 font-mono">
-              {watch("customer_reference_number") ||
-              customer_type === "supplier"
-                ? "SUP#001"
-                : "CUS#001"}
-            </div>
-          </div>
+          )}
           <div className="card-corrugated p-4 w-full">
             <div className="flex flex-wrap items-center gap-3">
               {/* --- Column 1: Do you have GST? --- */}
@@ -461,9 +509,19 @@ const SupplierForm = ({
               <input
                 type="tel"
                 {...register("alternative_mobile_number")}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 hover:border-gray-400 transition-colors"
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                  errors.alternative_mobile_number
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
                 placeholder="+91-9876543211"
               />
+              {errors.alternative_mobile_number && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.alternative_mobile_number.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-manufacturing-700 mb-1">
@@ -580,9 +638,19 @@ const SupplierForm = ({
               <input
                 type="text"
                 {...register("credit_limit")}
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors`}
-                placeholder="Enter Lead Time"
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                  errors.credit_limit
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
+                placeholder="Enter credit limit"
               />
+              {errors.credit_limit && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.credit_limit.message}
+                </p>
+              )}
             </div>
 
             {/* Notes - spans 2.5 columns */}
@@ -651,7 +719,10 @@ const SupplierForm = ({
                 {errors.addresses?.[0]?.contact_person_mobile_number && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.contact_person_mobile_number.message}
+                    {
+                      errors.addresses?.[0]?.contact_person_mobile_number
+                        .message
+                    }
                   </p>
                 )}
               </div>
@@ -674,7 +745,7 @@ const SupplierForm = ({
                 {errors.addresses?.[0]?.contact_email && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.contact_email.message}  
+                    {errors.addresses?.[0]?.contact_email.message}
                   </p>
                 )}
               </div>
@@ -886,31 +957,83 @@ const SupplierForm = ({
                                   onChange={(e) =>
                                     setEditingDocumentName(e.target.value)
                                   }
-                                  onKeyDown={(e) => {
+                                  onKeyDown={async (e) => {
                                     if (e.key === "Enter") {
-                                      // Update UI
-                                      setUploadedDocuments((prev) =>
-                                        prev.map((doc) =>
-                                          doc.id === document.id
-                                            ? {
-                                                ...doc,
-                                                name: editingDocumentName,
+                                      e.preventDefault(); // ✅ Prevent accidental form submit
+                                      if (!editingDocumentName?.trim()) {
+                                        toast.error(
+                                          "Document name cannot be empty!"
+                                        );
+                                        return;
+                                      }
+
+                                      try {
+                                        console.log(
+                                          "Editing Document:",
+                                          document
+                                        );
+
+                                        // ✅ Only call API if document has an ID (i.e., it's saved on the server)
+                                        if (document?.document_id) {
+                                          const response =
+                                            await CommonService.updateDocuments(
+                                              document.document_id,
+                                              {
+                                                document_name:
+                                                  editingDocumentName.trim(),
                                               }
-                                            : doc
-                                        )
-                                      );
+                                            );
 
-                                      // If using useForm, update the form value here
-                                      setValue(
-                                        `documents.${document.id}.name`,
-                                        editingDocumentName
-                                      );
+                                          if (response?.success) {
+                                            toast.success(
+                                              "Document name updated successfully!"
+                                            );
+                                          } else {
+                                            toast.error(
+                                              response?.message ||
+                                                "Failed to update document name."
+                                            );
+                                            return;
+                                          }
+                                        }
 
-                                      // Exit edit mode
-                                      setEditingDocumentId(null);
-                                      setEditingDocumentName("");
+                                        // ✅ Update local state immediately for UI feedback
+                                        setUploadedDocuments((prev) =>
+                                          prev.map((doc) =>
+                                            doc.id === document.id
+                                              ? {
+                                                  ...doc,
+                                                  name: editingDocumentName.trim(),
+                                                }
+                                              : doc
+                                          )
+                                        );
+
+                                        // ✅ Sync with form if you're using react-hook-form
+                                        if (setValue) {
+                                          setValue(
+                                            `documents.${document.id}.name`,
+                                            editingDocumentName.trim()
+                                          );
+                                        }
+
+                                        // ✅ Exit edit mode
+                                        setEditingDocumentId(null);
+                                        setEditingDocumentName("");
+                                      } catch (err) {
+                                        console.error(
+                                          "Error updating document:",
+                                          err
+                                        );
+                                        toast.error(
+                                          "An unexpected error occurred while updating the document."
+                                        );
+                                      }
                                     }
+
+                                    // ✅ Escape key to cancel editing
                                     if (e.key === "Escape") {
+                                      e.preventDefault();
                                       setEditingDocumentId(null);
                                       setEditingDocumentName("");
                                     }
@@ -967,7 +1090,7 @@ const SupplierForm = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeDocument(document.id)}
+                              onClick={() => removeDocument(document)}
                               className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
                               title="Remove document"
                             >

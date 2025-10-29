@@ -23,6 +23,7 @@ import {
 import toast from "react-hot-toast";
 import CustomFieldManager from "./CustomFieldManager";
 import { CommonService } from "../../services/CommonServices";
+import { ClientService } from "../../services/ClientServices";
 const CustomerForm = ({
   register,
   control,
@@ -48,6 +49,7 @@ const CustomerForm = ({
   setCities,
   addressOptions,
   setAddressOptions,
+  id,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -60,53 +62,98 @@ const CustomerForm = ({
 
   const [previewFile, setPreviewFile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
-
-  const fetchStates = async (countryId, index) => {
+  const fetchStates = async (countryId, index, preloadCity = true) => {
     try {
       const res = await CommonService.getStatesByCountry(countryId);
       if (res.success) {
         setAddressOptions((prev) => {
           const updated = [...prev];
+          updated[index] = updated[index] || { states: [], cities: [] };
           updated[index].states = res.data;
-          updated[index].cities = []; // reset cities
+          updated[index].cities = [];
           return updated;
         });
+
+        const selectedStateId = getValues(`addresses.${index}.state_id`);
+        if (selectedStateId) {
+          // ✅ Wait for dropdown render
+          setTimeout(() => {
+            setValue(`addresses.${index}.state_id`, selectedStateId);
+          }, 100);
+
+          if (preloadCity) {
+            // ✅ Wait for state value to settle before loading cities
+            setTimeout(() => {
+              fetchCities(selectedStateId, index, true);
+            }, 200);
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching states:", err);
     }
   };
 
-  const fetchCities = async (stateId, index) => {
+  const fetchCities = async (stateId, index, setSelectedCity = false) => {
     try {
       const res = await CommonService.getCitiesByState(stateId);
       if (res.success) {
         setAddressOptions((prev) => {
           const updated = [...prev];
+          updated[index] = updated[index] || { states: [], cities: [] };
           updated[index].cities = res.data;
           return updated;
         });
+
+        if (setSelectedCity) {
+          const selectedCityId = getValues(`addresses.${index}.city_id`);
+          if (selectedCityId) {
+            setTimeout(() => {
+              setValue(`addresses.${index}.city_id`, selectedCityId);
+            }, 100);
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching cities:", err);
     }
   };
+
   useEffect(() => {
-    if (countries.length === 1) {
-      const singleCountryId = countries[0].id;
+    const initializeAddresses = async () => {
+      if (countries.length === 1) {
+        const singleCountryId = countries[0].id;
 
-      // ✅ Set billing address country (index 0)
-      setValue("addresses.0.country_id", singleCountryId);
-      fetchStates(singleCountryId, 0);
+        // ✅ First address – wait till done
+        setValue("addresses.0.country_id", singleCountryId);
+        await fetchStates(singleCountryId, 0);
 
-      // ✅ Set each shipping address country (index > 0)
-      fields.slice(1).forEach((_, i) => {
-        const actualIndex = i + 1;
-        setValue(`addresses.${actualIndex}.country_id`, singleCountryId);
-        fetchStates(singleCountryId, actualIndex);
-      });
-    }
+        // ✅ Then preload the rest
+        for (let i = 1; i < fields.length; i++) {
+          setValue(`addresses.${i}.country_id`, singleCountryId);
+          await fetchStates(singleCountryId, i);
+        }
+      }
+    };
+
+    initializeAddresses();
   }, [countries]);
+
+  useEffect(() => {
+    fields.forEach(async (field, index) => {
+      if (countries.length === 1 && index === 0) return; // ✅ skip first when already initialized
+
+      const countryId = getValues(`addresses.${index}.country_id`);
+      const stateId = getValues(`addresses.${index}.state_id`);
+      const cityId = getValues(`addresses.${index}.city_id`);
+
+      if (countryId) {
+        await fetchStates(countryId, index, false);
+        if (stateId) await fetchCities(stateId, index, true);
+      }
+    });
+  }, [fields]);
+
   const openDocumentModal = () => {
     if (uploadedDocuments.length >= 10) {
       toast.error("Maximum 10 documents allowed.");
@@ -166,10 +213,14 @@ const CustomerForm = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const handleDelete = (index) => {
+  const handleDelete = (index, address) => {
+    console.log(index, address);
     if (
       window.confirm("Are you sure you want to delete this shipping address?")
     ) {
+      if (address?.id) {
+        ClientService.deleteAddress(address.id);
+      }
       remove(index + 1);
       if (activeIndex >= index && activeIndex > 0)
         setActiveIndex(activeIndex - 1);
@@ -187,18 +238,29 @@ const CustomerForm = ({
     setModalSelectedFiles((prev) => [...prev, ...files]);
   };
 
-  const removeDocument = (documentId) => {
-    setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
-    toast.success("Document removed successfully!");
+  const removeDocument = (document) => {
+    console.log(document);
+    if (document?.document_id) {
+      ClientService.deleteCustomerDocumentsLinks(document.id);
+      CommonService.deleteDocuemnts(document.document_id);
+      setUploadedDocuments((prev) =>
+        prev.filter((doc) => doc.id !== document.id)
+      );
+      toast.success("Document removed successfully!");
+    } else {
+      setUploadedDocuments((prev) =>
+        prev.filter((doc) => doc.id !== document.id)
+      );
+      toast.success("Document removed successfully!");
+    }
   };
 
   const handlePreview = (document) => {
+    console.log(document);
     let fileUrl = "";
     if (document.file instanceof File) {
       fileUrl = URL.createObjectURL(document.file);
-    }
-   
-    else if (document.document) {
+    } else if (document.document_id) {
       fileUrl = document.url;
     } else {
       toast.error("Preview not available for this file");
@@ -231,7 +293,6 @@ const CustomerForm = ({
     };
   }, [previewFile]);
 
-  
   const isPreviewable = (document) => {
     const previewableTypes = [
       "image/jpeg",
@@ -250,8 +311,8 @@ const CustomerForm = ({
       billing.contact_person_name || ""
     );
     setValue(
-      "addresses.1.contact_person_mobile_nuber",
-      billing.contact_person_mobile_nuber || ""
+      "addresses.1.contact_person_mobile_number",
+      billing.contact_person_mobile_number || ""
     );
     setValue("addresses.1.contact_email", billing.contact_email || "");
     setValue("addresses.1.address", billing.address || "");
@@ -277,27 +338,22 @@ const CustomerForm = ({
       <div className="space-y-4">
         {/* Customer ID Preview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div className="w-full bg-primary-50 border border-primary-200 rounded-lg p-3 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Hash className="h-4 w-4 text-primary-600" />
-              <div>
-                <h4 className="text-xs font-medium text-primary-800">
-                  {customer_type
-                    ? `${customer_type
-                        .charAt(0)
-                        .toUpperCase()}${customer_type.slice(1)} ID`
-                    : "Customer ID"}
-                </h4>
-                <p className="text-xs text-primary-600">Auto-generated</p>
+          {id && (
+            <div className="w-full bg-primary-50 border border-primary-200 rounded-lg p-3 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary-600" />
+                <div>
+                  <h4 className="text-xs font-medium text-primary-800">
+                    Client ID
+                  </h4>
+                  <p className="text-xs text-primary-600">Auto-generated</p>
+                </div>
+              </div>
+              <div className="text-base font-semibold text-primary-700 font-mono">
+                {watch("customer_reference_number") || "CLI#001"}
               </div>
             </div>
-            <div className="text-base font-semibold text-primary-700 font-mono">
-              {watch("customer_reference_number") ||
-              customer_type === "supplier"
-                ? "SUP#001"
-                : "CUS#001"}
-            </div>
-          </div>
+          )}
           <div className="card-corrugated p-4 w-full">
             <div className="flex flex-wrap items-center gap-3">
               {/* --- Column 1: Do you have GST? --- */}
@@ -500,9 +556,19 @@ const CustomerForm = ({
               <input
                 type="tel"
                 {...register("alternative_mobile_number")}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 hover:border-gray-400 transition-colors"
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                  errors.alternative_mobile_number
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
                 placeholder="+91-9876543211"
               />
+              {errors.alternative_mobile_number && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.alternative_mobile_number.message}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -544,9 +610,19 @@ const CustomerForm = ({
               <input
                 type="text"
                 {...register("credit_limit")}
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors `}
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                  errors.credit_limit
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
                 placeholder="Enter credit limit"
               />
+              {errors.credit_limit && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.credit_limit.message}
+                </p>
+              )}
             </div>
 
             <div>
@@ -907,12 +983,12 @@ const CustomerForm = ({
                 className="flex flex-nowrap items-center gap-2 overflow-x-auto max-w-[320px] pb-1"
                 style={{
                   scrollbarWidth: "thin",
-                  scrollbarColor: "#d1d5db transparent", // light gray thumb
+                  scrollbarColor: "#d1d5db transparent",
                 }}
               >
                 {fields.slice(1).map((address, index) => (
                   <button
-                    key={index}
+                    key={address.formKey}
                     type="button"
                     onClick={() => setActiveIndex(index)}
                     className={`px-2 py-1 text-xs font-medium rounded whitespace-nowrap transition-colors flex items-center gap-1 flex-shrink-0 ${
@@ -923,21 +999,20 @@ const CustomerForm = ({
                   >
                     Shipping {index + 1}
                     {fields.length > 2 && (
-                      <button
-                        type="button"
+                      <span
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(index);
+                          handleDelete(index, address);
                           if (activeIndex === index && index > 0) {
                             setActiveIndex(index - 1);
                           } else if (activeIndex > index) {
                             setActiveIndex(activeIndex - 1);
                           }
                         }}
-                        className="ml-1 p-0.5 hover:bg-red-200 rounded-full"
+                        className="ml-1 p-0.5 hover:bg-red-200 rounded-full cursor-pointer"
                       >
                         <X className="h-2 w-2" />
-                      </button>
+                      </span>
                     )}
                   </button>
                 ))}
@@ -1302,31 +1377,83 @@ const CustomerForm = ({
                                   onChange={(e) =>
                                     setEditingDocumentName(e.target.value)
                                   }
-                                  onKeyDown={(e) => {
+                                  onKeyDown={async (e) => {
                                     if (e.key === "Enter") {
-                                      // Update UI
-                                      setUploadedDocuments((prev) =>
-                                        prev.map((doc) =>
-                                          doc.id === document.id
-                                            ? {
-                                                ...doc,
-                                                name: editingDocumentName,
+                                      e.preventDefault(); // ✅ Prevent accidental form submit
+                                      if (!editingDocumentName?.trim()) {
+                                        toast.error(
+                                          "Document name cannot be empty!"
+                                        );
+                                        return;
+                                      }
+
+                                      try {
+                                        console.log(
+                                          "Editing Document:",
+                                          document
+                                        );
+
+                                        // ✅ Only call API if document has an ID (i.e., it's saved on the server)
+                                        if (document?.document_id) {
+                                          const response =
+                                            await CommonService.updateDocuments(
+                                              document.document_id,
+                                              {
+                                                document_name:
+                                                  editingDocumentName.trim(),
                                               }
-                                            : doc
-                                        )
-                                      );
+                                            );
 
-                                      // If using useForm, update the form value here
-                                      setValue(
-                                        `documents.${document.id}.name`,
-                                        editingDocumentName
-                                      );
+                                          if (response?.success) {
+                                            toast.success(
+                                              "Document name updated successfully!"
+                                            );
+                                          } else {
+                                            toast.error(
+                                              response?.message ||
+                                                "Failed to update document name."
+                                            );
+                                            return;
+                                          }
+                                        }
 
-                                      // Exit edit mode
-                                      setEditingDocumentId(null);
-                                      setEditingDocumentName("");
+                                        // ✅ Update local state immediately for UI feedback
+                                        setUploadedDocuments((prev) =>
+                                          prev.map((doc) =>
+                                            doc.id === document.id
+                                              ? {
+                                                  ...doc,
+                                                  name: editingDocumentName.trim(),
+                                                }
+                                              : doc
+                                          )
+                                        );
+
+                                        // ✅ Sync with form if you're using react-hook-form
+                                        if (setValue) {
+                                          setValue(
+                                            `documents.${document.id}.name`,
+                                            editingDocumentName.trim()
+                                          );
+                                        }
+
+                                        // ✅ Exit edit mode
+                                        setEditingDocumentId(null);
+                                        setEditingDocumentName("");
+                                      } catch (err) {
+                                        console.error(
+                                          "Error updating document:",
+                                          err
+                                        );
+                                        toast.error(
+                                          "An unexpected error occurred while updating the document."
+                                        );
+                                      }
                                     }
+
+                                    // ✅ Escape key to cancel editing
                                     if (e.key === "Escape") {
+                                      e.preventDefault();
                                       setEditingDocumentId(null);
                                       setEditingDocumentName("");
                                     }
@@ -1383,7 +1510,7 @@ const CustomerForm = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeDocument(document.id)}
+                              onClick={() => removeDocument(document)}
                               className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
                               title="Remove document"
                             >

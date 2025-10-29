@@ -14,6 +14,15 @@ export const CommonService = {
       };
     }
   },
+  updateDocuments: async (id, data) => {
+    try {
+      const response = await api.put(`/common/documents/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating documents:", error);
+      return { success: false, message: error.response?.data?.message };
+    }
+  },
 
   deleteDocuemnts: async (id) => {
     try {

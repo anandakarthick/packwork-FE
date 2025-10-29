@@ -10,12 +10,20 @@ const FormLayout = ({
   children,
   submitText = "Save",
 }) => {
+  // ✅ FIX: Properly handle form submission
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSubmit(e);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-corrugated-bg animate-slide-in-right">
       <div className="bg-gradient-to-r from-corrugated-600 to-corrugated-700 text-white px-4 py-3 shadow-lg sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <button
+              type="button"
               onClick={onCancel}
               className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
             >
@@ -29,6 +37,7 @@ const FormLayout = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onCancel}
             className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
           >
@@ -37,7 +46,7 @@ const FormLayout = ({
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col flex-1">
+      <form onSubmit={handleFormSubmit} className="flex flex-col flex-1">
         <div className="flex-1 overflow-y-auto p-4">{children}</div>
         <div className="bg-white border-t border-manufacturing-200 p-4 sticky bottom-0 z-10">
           <div className="flex justify-end space-x-3 mx-auto">
