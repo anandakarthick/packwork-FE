@@ -1,7 +1,7 @@
 import React from "react";
 import { Copy } from "lucide-react";
 import CustomColorDropdown from "./CustomColorDropdown";
-import GsmBfPicker from "./GSMBFPicker";
+import GsmBfPicker from "./GsmBfPicker";
 import toast from "react-hot-toast";
 
 const LayerConfiguration = ({
