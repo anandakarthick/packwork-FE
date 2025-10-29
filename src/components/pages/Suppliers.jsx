@@ -5,6 +5,7 @@ import Pagination from "../tables/Pagination";
 import CommonHeader from "../header/CommonHeader";
 import { ClientService } from "../../services/ClientServices";
 import { Truck } from "lucide-react";
+import { CommonService } from "../../services/CommonServices";
 
 const Suppliers = () => {
   const navigate = useNavigate();
@@ -56,25 +57,45 @@ const Suppliers = () => {
     setSearchTerm(searchTerm);
   };
   const handleDelete = async (row) => {
-    if (window.confirm("Are you sure you want to delete this supplier?")) {
+      if (!window.confirm("Are you sure you want to delete this client?")) return;
+  
       setLoading(true);
-      ClientService.deleteClient(row.id)
-        .then((response) => {
-          if (response.success) {
-            fetchClientData();
-          } else {
-            alert(response.message || "Failed to delete supplier");
-          }
-        })
-        .catch((error) => {
-          console.error("Error deleting supplier:", error);
-          alert("Failed to delete supplier");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  };
+      try {
+       
+        const addressRes = await ClientService.getClientAddressById(row.id);
+        if (addressRes.success && addressRes.data.length) {
+          await Promise.all(
+            addressRes.data.map((address) =>
+              ClientService.deleteAddress(address.id)
+            )
+          );
+        }
+       
+        const docRes = await ClientService.getCustomerAllDocuments(row.id);
+        if (docRes.success && docRes.data.length) {
+          await Promise.all(
+            docRes.data.map((doc) => ClientService.deleteCustomerDocumentsLinks(doc.id))
+          );
+          await Promise.all(
+            docRes.data.map((doc) => CommonService.deleteDocuemnts(doc.document_id))
+          );
+        }
+        
+        const deleteClientRes = await ClientService.deleteClient(row.id);
+        if (!deleteClientRes.success) {
+          alert(deleteClientRes.message || "Failed to delete client");
+          return;
+        }
+  
+        
+        fetchClientData();
+      } catch (error) {
+        console.error("Error deleting client:", error);
+        alert("Failed to delete client or related records");
+      } finally {
+        setLoading(false);
+      }
+    };
   console.log("Suppliers Data:", clientsData);
   const handleAddSupplier = () => {
     console.log("Add Supplier clicked");

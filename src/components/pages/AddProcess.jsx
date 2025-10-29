@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import FormLayout from "../form/FormLayout";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -12,11 +12,13 @@ import {
   X,
 } from "lucide-react";
 import ProcessService from "../../services/ProcessServices";
+import toast from "react-hot-toast";
 
 const AddProcess = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [process, setProcess] = useState(null);
+  const processIdRef = useRef(null);
 
   const {
     register,
@@ -39,7 +41,7 @@ const AddProcess = () => {
           field_type: "Text",
           default_value: "",
           dropdown_options: [],
-          is_required: false,
+          is_required: 0,
           field_order: 1,
         },
       ],
@@ -51,8 +53,101 @@ const AddProcess = () => {
     name: "process_custom_fields",
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     console.log("Process Data Submitted:", data);
+
+    try {
+      // UseRef ensures processId persists even if validation or partial failure occurs
+
+      let processId = data.id || processIdRef.current || null;
+      const { process_custom_fields, id, ...processPayload } = data;
+
+      // ✅ Step 1: Create or Update Process
+      if (processId) {
+        // 🔹 Update existing process
+        const updateRes = await ProcessService.updateProcess(
+          processId,
+          processPayload
+        );
+        if (!updateRes?.success) {
+          throw new Error(updateRes?.message || "Failed to update process");
+        }
+        console.log("✅ Process updated:", processId);
+      } else {
+        // 🔹 Create new process
+        const createRes = await ProcessService.createProcess(processPayload);
+        if (!createRes?.success) {
+          throw new Error(createRes?.message || "Failed to create process");
+        }
+
+        processId = createRes?.data?.id;
+        if (!processId) throw new Error("Process ID not found in response");
+
+        processIdRef.current = processId;
+        setValue("id", processId); // keep id in form for retries
+        console.log("✅ Process created:", processId);
+      }
+
+      // ✅ Step 2: Create or Update Process Custom Fields
+      for (const field of process_custom_fields) {
+        const { id: fieldId, process_id, ...cleanField } = field;
+
+        // 🔹 Normalize "is_required" to 0 or 1
+        cleanField.is_required =
+          cleanField.is_required === true ||
+          cleanField.is_required === 1 ||
+          cleanField.is_required === "1"
+            ? 1
+            : 0;
+
+        // 🔹 Only send dropdown_options for Dropdown fields
+        let fieldPayload;
+        if (
+          cleanField.field_type?.toLowerCase() === "dropdown" &&
+          Array.isArray(cleanField.dropdown_options)
+        ) {
+          fieldPayload = { ...cleanField };
+        } else {
+          const { dropdown_options, ...rest } = cleanField;
+          fieldPayload = { ...rest };
+        }
+
+        if (fieldId) {
+          // 🔹 Update existing field
+          const fieldRes = await ProcessService.updateProcessCustomField(
+            fieldId,
+            fieldPayload
+          );
+          if (!fieldRes?.success) {
+            console.warn("⚠️ Failed to update field:", cleanField);
+          }
+        } else {
+          // 🔹 Create new field
+          const fieldRes = await ProcessService.createProcessCustomFields(
+            processId,
+            fieldPayload
+          );
+          if (!fieldRes?.success) {
+            console.warn("⚠️ Failed to create field:", cleanField);
+          }
+        }
+      }
+
+      // ✅ Step 3: Final success
+      toast.success(
+        processIdRef.current || id
+          ? "✅ Process updated successfully!"
+          : "✅ Process and custom fields created successfully!"
+      );
+
+      reset();
+      navigate("/process");
+    } catch (error) {
+      console.error("❌ Error submitting process data:", error);
+      toast.error(
+        error.message || "Something went wrong while saving process."
+      );
+    }
   };
 
   const [newOptions, setNewOptions] = useState({});
@@ -86,17 +181,27 @@ const AddProcess = () => {
     if (id) {
       const fetchProcess = async () => {
         try {
-          const response = await ProcessService.getProcessById(id);
-          const processData = response?.data;
+          // ✅ Fetch process details
+          const processRes = await ProcessService.getProcessById(id);
+          const processData = processRes?.data;
 
+          // ✅ Fetch related custom fields
+          const customFieldsRes = await ProcessService.getProcessCustomFields(
+            id
+          );
+          const processCustomFieldsData = Array.isArray(customFieldsRes?.data)
+            ? customFieldsRes.data
+            : [];
+
+          // ✅ Prepare form reset payload
           if (processData) {
             reset({
               id: processData.id || "",
               process_number: processData.process_number || "",
               process_name: processData.process_name || "",
               process_custom_fields:
-                processData.fields && processData.fields.length > 0
-                  ? processData.fields.map((field, index) => ({
+                processCustomFieldsData.length > 0
+                  ? processCustomFieldsData.map((field, index) => ({
                       id: field.id || "",
                       field_label: field.field_label || "",
                       field_type: field.field_type || "Text",
@@ -108,7 +213,12 @@ const AddProcess = () => {
                             .split(",")
                             .map((opt) => opt.trim())
                         : [],
-                      is_required: field.is_required || false,
+                      is_required:
+                        field.is_required === true ||
+                        field.is_required === 1 ||
+                        field.is_required === "1"
+                          ? 1
+                          : 0,
                       field_order: field.field_order || index + 1,
                     }))
                   : [
@@ -118,14 +228,14 @@ const AddProcess = () => {
                         field_type: "Text",
                         default_value: "",
                         dropdown_options: [],
-                        is_required: false,
+                        is_required: 0,
                         field_order: 1,
                       },
                     ],
             });
           }
         } catch (error) {
-          console.error("Error fetching process:", error);
+          console.error("❌ Error fetching process data:", error);
         }
       };
 
@@ -215,7 +325,7 @@ const AddProcess = () => {
                   field_label: "",
                   field_type: "Text",
                   field_order: fields.length + 1,
-                  is_required: false,
+                  is_required: 0,
                   dropdown_options: [],
                 })
               }
@@ -273,9 +383,9 @@ const AddProcess = () => {
                       )}
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
                     >
-                      <option value="Text">Text</option>
-                      <option value="Number">Number</option>
-                      <option value="Dropdown">Dropdown</option>
+                      <option value="text">Text</option>
+                      <option value="number">Number</option>
+                      <option value="dropdown">Dropdown</option>
                     </select>
                   </div>
 

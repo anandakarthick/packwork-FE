@@ -3,8 +3,11 @@ import {
   ArrowLeft,
   CreditCard,
   Currency,
+  Download,
   Edit3,
+  Eye,
   File,
+  FileText,
   Globe,
   InfoIcon,
   LocateFixedIcon,
@@ -23,10 +26,13 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ClientService } from "../../services/ClientServices";
 import toast from "react-hot-toast";
+import { CommonService } from "../../services/CommonServices";
 
 const ViewSupplier = () => {
   const navigate = useNavigate();
   const [supplier, setSupplier] = useState({});
+  const [paymentTerms, setPaymentTerms] = useState([]);
+  const [businessTypes, setBusinessTypes] = useState([]);
 
   const { id } = useParams();
   useEffect(() => {
@@ -36,17 +42,36 @@ const ViewSupplier = () => {
         console.log("Supplier response:", response?.data);
         setSupplier(response?.data);
         const p = await ClientService.getClientAddressById(id);
+        console.log("Supplier addresses response:", p?.data);
         if (p && p.data && Array.isArray(p.data)) {
           setSupplier((prev) => ({
             ...prev,
             addresses: p.data,
           }));
         }
+        const documents = await ClientService.getCustomerAllDocuments(id);
+        setSupplier((prev) => ({
+          ...prev,
+          documents: documents?.data,
+        }));
       } catch (error) {
-        console.error("Error fetching supplier:", error);
+        console.error("Error fetching Supplier:", error);
+      }
+    };
+    const fetchConfigData = async () => {
+      try {
+        const response = await CommonService.getGroupedConfigs();
+        console.log("Config data:", response);
+        if (response.success) {
+          setPaymentTerms(response.data.payment_terms);
+          setBusinessTypes(response.data.business_type);
+        }
+      } catch (error) {
+        console.error("Error fetching payment terms:", error);
       }
     };
     fetchSupplier();
+    fetchConfigData();
   }, [id]);
 
   const getDocuments = () => {
@@ -65,70 +90,49 @@ const ViewSupplier = () => {
   };
 
   const handleDownloadDocument = async (documentObj) => {
-    console.log(`📄 Downloading document:`, documentObj);
-    // try {
-    //   console.log("📄 Downloading document:", documentObj);
+    try {
+      if (!documentObj?.document) {
+        toast.error("Document URL not found");
+        return;
+      }
 
-    //   // Use API call for download to ensure proper authentication
-    //   const response = await customerService.downloadCustomerDocument(
-    //     id,
-    //     documentObj.fileName
-    //   );
+      const fileUrl = documentObj.document;
+      const fileName = `${documentObj.document_name || "document"}.${
+        documentObj.document_type || "pdf"
+      }`;
 
-    //   // Create blob from response
-    //   const blob = new Blob([response.data], {
-    //     type: documentObj.mimeType || "application/octet-stream",
-    //   });
-    //   const url = window.URL.createObjectURL(blob);
+      // Fetch file from S3 URL
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
 
-    //   // Create temporary link and click to download
-    //   const link = document.createElement("a");
-    //   link.href = url;
-    //   link.setAttribute(
-    //     "download",
-    //     documentObj.originalName || documentObj.fileName
-    //   );
-    //   link.style.display = "none";
-    //   document.body.appendChild(link);
-    //   link.click();
+      // Create temporary link for download
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
 
-    //   // Cleanup
-    //   link.remove();
-    //   window.URL.revokeObjectURL(url);
-
-    //   toast.success("Document downloaded successfully");
-    // } catch (error) {
-    //   console.error("Download error:", error);
-    //   toast.error("Failed to download document");
-    // }
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(link.href);
+      toast.success("Document downloaded successfully");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download document");
+    }
   };
-
   const handleViewDocument = async (documentObj) => {
-    console.log(`👁️ Viewing document:`, documentObj);
-    // try {
-    //   console.log("👁️ Viewing document:", documentObj.originalName);
+    try {
+      if (!documentObj?.document) {
+        toast.error("Document URL not found");
+        return;
+      }
 
-    //   // Use API call for viewing to ensure proper authentication
-    //   const response = await customerService.viewCustomerDocument(
-    //     id,
-    //     documentObj.fileName
-    //   );
-
-    //   // Create blob from response
-    //   const blob = new Blob([response.data], { type: documentObj.mimeType });
-    //   const url = window.URL.createObjectURL(blob);
-
-    //   // Open in new tab/window
-    //   window.open(url, "_blank");
-
-    //   // Cleanup after a delay to ensure the file opens
-    //   setTimeout(() => {
-    //     window.URL.revokeObjectURL(url);
-    //   }, 1000);
-    // } catch (error) {
-    //   console.error("View error:", error);
-    //   toast.error("Failed to view document");
-    // }
+      window.open(documentObj.document, "_blank");
+    } catch (error) {
+      console.error("View error:", error);
+      toast.error("Failed to view document");
+    }
   };
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
@@ -297,7 +301,7 @@ const ViewSupplier = () => {
                       Payments Terms
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.payment_terms ?? "Not provided"}
+                      {paymentTerms.find((pt) => pt.id === supplier?.payment_term_id)?.display_label ??  "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -333,7 +337,7 @@ const ViewSupplier = () => {
                         <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                         <div>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.name ?? "Not provided"}
+                            {address?.contact_person_name ?? "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -342,7 +346,7 @@ const ViewSupplier = () => {
                         <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                         <div>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.contact_person ?? "Not provided"}
+                            {address?.contact_email ?? "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -351,7 +355,7 @@ const ViewSupplier = () => {
                         <PhoneCall className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                         <div>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.mobile_number ?? "Not provided"}
+                            {address?.contact_person_mobile_number ?? "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -376,7 +380,7 @@ const ViewSupplier = () => {
                             City
                           </p>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.city ?? "Not provided"}
+                            {address?.city_name ?? "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -387,7 +391,7 @@ const ViewSupplier = () => {
                             State
                           </p>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.state ?? "Not provided"}
+                            {address?.state_name ?? "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -398,7 +402,7 @@ const ViewSupplier = () => {
                             Country
                           </p>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.country ?? "Not provided"}
+                            {address?.country_name ?? "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -459,18 +463,18 @@ const ViewSupplier = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-medium text-manufacturing-800 truncate mb-1">
-                              {document.originalName}
+                              {document.document_name}
                             </h4>
                             <div className="flex items-center text-xs text-manufacturing-500 space-x-2">
-                              <span>{formatFileSize(document.size)}</span>
-                              <span>•</span>
                               <span>
-                                {document.mimeType
-                                  ?.split("/")[1]
-                                  ?.toUpperCase() || "FILE"}
+                                {formatFileSize(document.document_size)}
                               </span>
                               <span>•</span>
-                              <span>{formatDate(document.uploadDate)}</span>
+                              <span>{document.document_type}</span>
+                              <span>•</span>
+                              <span>
+                                {formatDate(document.document_created_at)}
+                              </span>
                             </div>
                           </div>
                         </div>

@@ -96,13 +96,13 @@ const CustomerForm = ({
       const singleCountryId = countries[0].id;
 
       // ✅ Set billing address country (index 0)
-      setValue("addresses.0.country", singleCountryId);
+      setValue("addresses.0.country_id", singleCountryId);
       fetchStates(singleCountryId, 0);
 
       // ✅ Set each shipping address country (index > 0)
       fields.slice(1).forEach((_, i) => {
         const actualIndex = i + 1;
-        setValue(`addresses.${actualIndex}.country`, singleCountryId);
+        setValue(`addresses.${actualIndex}.country_id`, singleCountryId);
         fetchStates(singleCountryId, actualIndex);
       });
     }
@@ -193,34 +193,45 @@ const CustomerForm = ({
   };
 
   const handlePreview = (document) => {
-    // Create object URL for preview
-    const fileUrl = URL.createObjectURL(document.file);
+    let fileUrl = "";
+    if (document.file instanceof File) {
+      fileUrl = URL.createObjectURL(document.file);
+    }
+   
+    else if (document.document) {
+      fileUrl = document.url;
+    } else {
+      toast.error("Preview not available for this file");
+      return;
+    }
+
     setPreviewFile({
       url: fileUrl,
       type: document.type,
-      name: document.name,
+      name: document.name || document.originalName || "Document",
+      isFromServer: !!document.url,
     });
+
     setShowPreview(true);
   };
 
   const closePreview = () => {
-    if (previewFile?.url) {
+    if (previewFile?.url && !previewFile?.isFromServer) {
       URL.revokeObjectURL(previewFile.url);
     }
     setPreviewFile(null);
     setShowPreview(false);
   };
 
-  // Clean up object URLs when component unmounts
   useEffect(() => {
     return () => {
-      if (previewFile?.url) {
+      if (previewFile?.url && !previewFile?.isFromServer) {
         URL.revokeObjectURL(previewFile.url);
       }
     };
   }, [previewFile]);
 
-  // Add this to check if file is previewable
+  
   const isPreviewable = (document) => {
     const previewableTypes = [
       "image/jpeg",
@@ -238,13 +249,16 @@ const CustomerForm = ({
       "addresses.1.contact_person_name",
       billing.contact_person_name || ""
     );
-    setValue("addresses.1.phone", billing.phone || "");
-    setValue("addresses.1.email", billing.email || "");
+    setValue(
+      "addresses.1.contact_person_mobile_nuber",
+      billing.contact_person_mobile_nuber || ""
+    );
+    setValue("addresses.1.contact_email", billing.contact_email || "");
     setValue("addresses.1.address", billing.address || "");
-    setValue("addresses.1.city", billing.city || "");
-    setValue("addresses.1.state", billing.state || "");
+    setValue("addresses.1.city_id", billing.city_id || "");
+    setValue("addresses.1.state_id", billing.state_id || "");
     setValue("addresses.1.pincode", billing.pincode || "");
-    setValue("addresses.1.country", billing.country || "");
+    setValue("addresses.1.country_id", billing.country_id || "");
   };
   const handleFetchGST = () => {
     console.log("Fetch GST clicked");
@@ -396,7 +410,7 @@ const CustomerForm = ({
                 Business Type <span className="text-red-500">*</span>
               </label>
               <select
-                {...register("business_type", {
+                {...register("business_type_id", {
                   required: "Business type is required",
                 })}
                 onChange={(e) => {
@@ -404,9 +418,9 @@ const CustomerForm = ({
                   if (value === "manage") {
                     setActiveFieldType("business_type");
                     setShowManageModal(true); // ✅ Open modal
-                    setValue("business_type", ""); // Clear the selection
+                    setValue("business_type_id", ""); // Clear the selection
                   } else {
-                    setValue("business_type", value);
+                    setValue("business_type_id", value);
                   }
                 }}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors"
@@ -425,22 +439,11 @@ const CustomerForm = ({
                 ))}
               </select>
 
-              {errors.business_type && (
+              {errors.business_type_id && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.business_type.message}
+                  {errors.business_type_id.message}
                 </p>
-              )}
-
-              {/* --- Custom Field Modal --- */}
-              {showManageModal && (
-                <CustomFieldManager
-                  isOpen={showManageModal}
-                  onClose={() => setShowManageModal(false)}
-                  onFieldAdded={handleFieldAdded}
-                  fieldType="business_type"
-                  onRefresh={handleRefresh}
-                />
               )}
             </div>
 
@@ -551,7 +554,7 @@ const CustomerForm = ({
                 Payment Terms <span className="text-red-500">*</span>
               </label>
               <select
-                {...register("payment_terms", {
+                {...register("payment_term_id", {
                   required: "Payment terms is required",
                 })}
                 onChange={(e) => {
@@ -559,9 +562,9 @@ const CustomerForm = ({
                   if (value === "manage") {
                     setActiveFieldType("payment_terms");
                     setShowManageModal(true); // ✅ Open modal
-                    setValue("payment_terms", ""); // Clear the selection
+                    setValue("payment_term_id", ""); // Clear the selection
                   } else {
-                    setValue("payment_terms", value);
+                    setValue("payment_term_id", value);
                   }
                 }}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors"
@@ -580,10 +583,10 @@ const CustomerForm = ({
                 ))}
               </select>
 
-              {errors.payment_terms && (
+              {errors.payment_term_id && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.payment_terms.message}
+                  {errors.payment_term_id.message}
                 </p>
               )}
 
@@ -688,20 +691,23 @@ const CustomerForm = ({
                   Phone <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register(`addresses.0.phone`, {
+                  {...register(`addresses.0.contact_person_mobile_number`, {
                     required: "Phone number is required",
                   })}
                   placeholder="Enter Phone Number"
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.phone
+                    errors.addresses?.[0]?.contact_person_mobile_number
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
                 />
-                {errors.addresses?.[0]?.phone && (
+                {errors.addresses?.[0]?.contact_person_mobile_number && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.phone.message}
+                    {
+                      errors.addresses?.[0]?.contact_person_mobile_number
+                        .message
+                    }
                   </p>
                 )}
               </div>
@@ -711,20 +717,20 @@ const CustomerForm = ({
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register(`addresses.0.email`, {
+                  {...register(`addresses.0.contact_email`, {
                     required: "Email address is required",
                   })}
                   placeholder="Enter Email Address"
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.email
+                    errors.addresses?.[0]?.contact_email
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
                 />
-                {errors.addresses?.[0]?.email && (
+                {errors.addresses?.[0]?.contact_email && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.email.message}
+                    {errors.addresses?.[0]?.contact_email.message}
                   </p>
                 )}
               </div>
@@ -781,16 +787,16 @@ const CustomerForm = ({
                   Country <span className="text-red-500">*</span>
                 </label>
                 <select
-                  {...register(`addresses.0.country`, {
+                  {...register(`addresses.0.country_id`, {
                     required: "Country is required",
                   })}
                   onChange={(e) => {
                     const value = e.target.value;
-                    setValue(`addresses.0.country`, value);
+                    setValue(`addresses.0.country_id`, value);
                     fetchStates(value, 0);
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.country
+                    errors.addresses?.[0]?.country_id
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
@@ -803,10 +809,10 @@ const CustomerForm = ({
                       </option>
                     ))}
                 </select>
-                {errors.addresses?.[0]?.country && (
+                {errors.addresses?.[0]?.country_id && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.country.message}
+                    {errors.addresses?.[0]?.country_id.message}
                   </p>
                 )}
               </div>
@@ -816,16 +822,16 @@ const CustomerForm = ({
                   State <span className="text-red-500">*</span>
                 </label>
                 <select
-                  {...register(`addresses.0.state`, {
+                  {...register(`addresses.0.state_id`, {
                     required: "state is required",
                   })}
                   onChange={(e) => {
                     const value = e.target.value;
-                    setValue(`addresses.0.state`, value);
+                    setValue(`addresses.0.state_id`, value);
                     fetchCities(value, 0);
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.state
+                    errors.addresses?.[0]?.state_id
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
@@ -837,10 +843,10 @@ const CustomerForm = ({
                     </option>
                   ))}
                 </select>
-                {errors.addresses?.[0]?.state && (
+                {errors.addresses?.[0]?.state_id && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.state.message}
+                    {errors.addresses?.[0]?.state_id.message}
                   </p>
                 )}
               </div>
@@ -850,11 +856,11 @@ const CustomerForm = ({
                   City <span className="text-red-500">*</span>
                 </label>
                 <select
-                  {...register(`addresses.0.city`, {
+                  {...register(`addresses.0.city_id`, {
                     required: "city is required",
                   })}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.city
+                    errors.addresses?.[0]?.city_id
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
@@ -866,10 +872,10 @@ const CustomerForm = ({
                     </option>
                   ))}
                 </select>
-                {errors.addresses?.[0]?.city && (
+                {errors.addresses?.[0]?.city_id && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.city.message}
+                    {errors.addresses?.[0]?.city_id.message}
                   </p>
                 )}
               </div>
@@ -877,91 +883,6 @@ const CustomerForm = ({
           </div>
 
           <div className="w-full md:w-1/2 card-corrugated p-4 space-y-3">
-            {/* <h3 className="text-base font-medium text-manufacturing-800 border-b border-manufacturing-200 flex items-center justify-between">
-              <span className="flex items-center">
-                <div className="bg-primary-100 rounded-full p-1 mr-2">
-                  <Truck className="h-3 w-3 text-primary-600" />
-                </div>
-                <span className="flex items-center gap-2">
-                  Shipping Address
-                  {activeIndex === 0 && (
-                    <button
-                      type="button"
-                      onClick={handleCopyBillingToShipping}
-                      title="Copy from Billing Address"
-                      className="text-primary-600 hover:text-primary-800 transition-colors"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  )}
-                </span>
-              </span>
-
-              {fields.length > 1 && (
-                <div
-                  className="flex items-center gap-2 overflow-x-auto pb-2 justify-end"
-                  style={{
-                    maxWidth: "340px",
-                    whiteSpace: "nowrap",
-                    scrollbarColor: "#CBD5E1 transparent",
-                    scrollbarWidth: "thin",
-                  }}
-                >
-                 
-                  <style>
-                    {`
-            div::-webkit-scrollbar {
-              height: 6px;
-            }
-            div::-webkit-scrollbar-thumb {
-              background-color: #CBD5E1;
-              border-radius: 10px;
-            }
-            div::-webkit-scrollbar-track {
-              background: transparent;
-            }
-          `}
-                  </style>
-
-                  {fields.slice(1).map((address, index) => (
-                    <div
-                      key={address.id}
-                      onClick={() => setActiveIndex(index)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer whitespace-nowrap transition-colors flex-shrink-0 ${
-                        activeIndex === index
-                          ? "bg-corrugated-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      Shipping {index + 1}
-                      {fields.length > 2 && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(index);
-                          }}
-                          className="ml-1 hover:text-red-300"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <span className="flex items-center">
-                <button
-                  type="button"
-                  onClick={handleAddAddress}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-pointer whitespace-nowrap transition-colors flex-shrink-0 bg-corrugated-600 text-white hover:bg-corrugated-700"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add
-                </button>
-              </span>
-            </h3> */}
             <h3 className="text-base font-medium text-manufacturing-800 border-b border-manufacturing-200 flex items-center justify-between pb-2 mb-2">
               <span className="flex items-center">
                 <div className="bg-primary-100 rounded-full p-1 mr-2">
@@ -1127,20 +1048,28 @@ const CustomerForm = ({
                         Phone <span className="text-red-500">*</span>
                       </label>
                       <input
-                        {...register(`addresses.${actualIndex}.phone`, {
-                          required: "Phone number is required",
-                        })}
+                        {...register(
+                          `addresses.${actualIndex}.contact_person_mobile_number`,
+                          {
+                            required: "Phone number is required",
+                          }
+                        )}
                         placeholder="Enter Contact person Phone Number"
                         className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                          errors.addresses?.[actualIndex]?.phone
+                          errors.addresses?.[actualIndex]
+                            ?.contact_person_mobile_number
                             ? "border-red-500 bg-red-50"
                             : "border-gray-300 hover:border-gray-400"
                         }`}
                       />
-                      {errors.addresses?.[actualIndex]?.phone && (
+                      {errors.addresses?.[actualIndex]
+                        ?.contact_person_mobile_number && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
-                          {errors.addresses?.[actualIndex]?.phone.message}
+                          {
+                            errors.addresses?.[actualIndex]
+                              ?.contact_person_mobile_number.message
+                          }
                         </p>
                       )}
                     </div>
@@ -1149,20 +1078,23 @@ const CustomerForm = ({
                         Email <span className="text-red-500">*</span>
                       </label>
                       <input
-                        {...register(`addresses.${actualIndex}.email`, {
+                        {...register(`addresses.${actualIndex}.contact_email`, {
                           required: "Email is required",
                         })}
                         placeholder="Enter Email Address"
                         className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                          errors.addresses?.[actualIndex]?.email
+                          errors.addresses?.[actualIndex]?.contact_email
                             ? "border-red-500 bg-red-50"
                             : "border-gray-300 hover:border-gray-400"
                         }`}
                       />
-                      {errors.addresses?.[actualIndex]?.email && (
+                      {errors.addresses?.[actualIndex]?.contact_email && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
-                          {errors.addresses?.[actualIndex]?.email.message}
+                          {
+                            errors.addresses?.[actualIndex]?.contact_email
+                              .message
+                          }
                         </p>
                       )}
                     </div>
@@ -1198,12 +1130,15 @@ const CustomerForm = ({
                         Country <span className="text-red-500">*</span>
                       </label>
                       <select
-                        {...register(`addresses.${actualIndex}.country`, {
+                        {...register(`addresses.${actualIndex}.country_id`, {
                           required: "Country is required",
                         })}
                         onChange={(e) => {
                           const value = e.target.value;
-                          setValue(`addresses.${actualIndex}.country`, value);
+                          setValue(
+                            `addresses.${actualIndex}.country_id`,
+                            value
+                          );
                           fetchStates(value, actualIndex);
                         }}
                         className="w-full px-3 py-2 border rounded-lg"
@@ -1216,10 +1151,10 @@ const CustomerForm = ({
                         ))}
                       </select>
 
-                      {errors.addresses?.[actualIndex]?.country && (
+                      {errors.addresses?.[actualIndex]?.country_id && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
-                          {errors.addresses?.[actualIndex]?.country.message}
+                          {errors.addresses?.[actualIndex]?.country_id.message}
                         </p>
                       )}
                     </div>
@@ -1228,12 +1163,12 @@ const CustomerForm = ({
                         State <span className="text-red-500">*</span>
                       </label>
                       <select
-                        {...register(`addresses.${actualIndex}.state`, {
+                        {...register(`addresses.${actualIndex}.state_id`, {
                           required: "State is required",
                         })}
                         onChange={(e) => {
                           const value = e.target.value;
-                          setValue(`addresses.${actualIndex}.state`, value);
+                          setValue(`addresses.${actualIndex}.state_id`, value);
                           fetchCities(value, actualIndex);
                         }}
                         className="w-full px-3 py-2 border rounded-lg"
@@ -1246,10 +1181,10 @@ const CustomerForm = ({
                         ))}
                       </select>
 
-                      {errors.addresses?.[actualIndex]?.state && (
+                      {errors.addresses?.[actualIndex]?.state_id && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
-                          {errors.addresses?.[actualIndex]?.state.message}
+                          {errors.addresses?.[actualIndex]?.state_id.message}
                         </p>
                       )}
                     </div>
@@ -1258,7 +1193,7 @@ const CustomerForm = ({
                         City <span className="text-red-500">*</span>
                       </label>
                       <select
-                        {...register(`addresses.${actualIndex}.city`, {
+                        {...register(`addresses.${actualIndex}.city_id`, {
                           required: "City is required",
                         })}
                         className="w-full px-3 py-2 border rounded-lg"
@@ -1271,10 +1206,10 @@ const CustomerForm = ({
                         ))}
                       </select>
 
-                      {errors.addresses?.[actualIndex]?.city && (
+                      {errors.addresses?.[actualIndex]?.city_id && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
-                          {errors.addresses?.[actualIndex]?.city.message}
+                          {errors.addresses?.[actualIndex]?.city_id.message}
                         </p>
                       )}
                     </div>
@@ -1439,7 +1374,7 @@ const CustomerForm = ({
                               type="button"
                               onClick={() => {
                                 setEditingDocumentId(document.id);
-                                setEditingDocumentName(document.name);
+                                setEditingDocumentName(document.document_name);
                               }}
                               className="p-2 text-yellow-500 hover:text-yellow-700 hover:bg-yellow-50 rounded-full transition-colors"
                               title="Edit document name"

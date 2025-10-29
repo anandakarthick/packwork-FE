@@ -3,8 +3,11 @@ import {
   ArrowLeft,
   CreditCard,
   Currency,
+  Download,
   Edit3,
+  Eye,
   File,
+  FileText,
   Globe,
   InfoIcon,
   LocateFixedIcon,
@@ -22,11 +25,15 @@ import {
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ClientService } from "../../services/ClientServices";
+import { CommonService } from "../../services/CommonServices";
+import toast from "react-hot-toast";
 
 const ViewClient = () => {
   const navigate = useNavigate();
   const [client, setClient] = useState({});
   const [activeIndex, setActiveIndex] = useState(0);
+  const [businessTypes, setBusinessTypes] = useState([]);
+  const [paymentTerms, setPaymentTerms] = useState([]);
 
   const { id } = useParams();
   useEffect(() => {
@@ -43,11 +50,29 @@ const ViewClient = () => {
             addresses: p.data,
           }));
         }
+        const documents = await ClientService.getCustomerAllDocuments(id);
+        setClient((prev) => ({
+          ...prev,
+          documents: documents?.data,
+        }));
       } catch (error) {
         console.error("Error fetching client:", error);
       }
     };
+    const fetchConfigData = async () => {
+      try {
+        const response = await CommonService.getGroupedConfigs();
+        console.log("Config data:", response);
+        if (response.success) {
+          setPaymentTerms(response.data.payment_terms);
+          setBusinessTypes(response.data.business_type);
+        }
+      } catch (error) {
+        console.error("Error fetching payment terms:", error);
+      }
+    };
     fetchClient();
+    fetchConfigData();
   }, [id]);
   const getDocuments = () => {
     if (!client || !client.documents) return [];
@@ -63,73 +88,53 @@ const ViewClient = () => {
       minute: "2-digit",
     });
   };
-
   const handleDownloadDocument = async (documentObj) => {
-    console.log(`📄 Downloading document:`, documentObj);
-    // try {
-    //   console.log("📄 Downloading document:", documentObj);
+    try {
+      if (!documentObj?.document) {
+        toast.error("Document URL not found");
+        return;
+      }
 
-    //   // Use API call for download to ensure proper authentication
-    //   const response = await customerService.downloadCustomerDocument(
-    //     id,
-    //     documentObj.fileName
-    //   );
+      const fileUrl = documentObj.document;
+      const fileName = `${documentObj.document_name || "document"}.${
+        documentObj.document_type || "pdf"
+      }`;
 
-    //   // Create blob from response
-    //   const blob = new Blob([response.data], {
-    //     type: documentObj.mimeType || "application/octet-stream",
-    //   });
-    //   const url = window.URL.createObjectURL(blob);
+      // Fetch file from S3 URL
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
 
-    //   // Create temporary link and click to download
-    //   const link = document.createElement("a");
-    //   link.href = url;
-    //   link.setAttribute(
-    //     "download",
-    //     documentObj.originalName || documentObj.fileName
-    //   );
-    //   link.style.display = "none";
-    //   document.body.appendChild(link);
-    //   link.click();
+      // Create temporary link for download
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
 
-    //   // Cleanup
-    //   link.remove();
-    //   window.URL.revokeObjectURL(url);
-
-    //   toast.success("Document downloaded successfully");
-    // } catch (error) {
-    //   console.error("Download error:", error);
-    //   toast.error("Failed to download document");
-    // }
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(link.href);
+      toast.success("Document downloaded successfully");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download document");
+    }
   };
-
   const handleViewDocument = async (documentObj) => {
-    console.log(`👁️ Viewing document:`, documentObj);
-    // try {
-    //   console.log("👁️ Viewing document:", documentObj.originalName);
+    try {
+      if (!documentObj?.document) {
+        toast.error("Document URL not found");
+        return;
+      }
 
-    //   // Use API call for viewing to ensure proper authentication
-    //   const response = await customerService.viewCustomerDocument(
-    //     id,
-    //     documentObj.fileName
-    //   );
-
-    //   // Create blob from response
-    //   const blob = new Blob([response.data], { type: documentObj.mimeType });
-    //   const url = window.URL.createObjectURL(blob);
-
-    //   // Open in new tab/window
-    //   window.open(url, "_blank");
-
-    //   // Cleanup after a delay to ensure the file opens
-    //   setTimeout(() => {
-    //     window.URL.revokeObjectURL(url);
-    //   }, 1000);
-    // } catch (error) {
-    //   console.error("View error:", error);
-    //   toast.error("Failed to view document");
-    // }
+      // Open directly in new tab
+      window.open(documentObj.document, "_blank");
+    } catch (error) {
+      console.error("View error:", error);
+      toast.error("Failed to view document");
+    }
   };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -230,7 +235,6 @@ const ViewClient = () => {
                 </div>
                 Contact Information
               </h3>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Email Address */}
                 <div className="flex items-start space-x-2">
@@ -307,7 +311,7 @@ const ViewClient = () => {
                       Payments Terms
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {client?.payment_terms ?? "Not provided"}
+                      {paymentTerms.find((pt) => pt.id === client?.payment_term_id)?.display_label ??  "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -430,7 +434,6 @@ const ViewClient = () => {
                 ))}
             </div>
             <div className="w-full card-corrugated p-4 space-y-3">
-              {/* ---------- HEADER ---------- */}
               <h3 className="text-base font-medium text-manufacturing-800 border-b border-manufacturing-200 flex items-center justify-between">
                 <span className="flex items-center">
                   <div className="bg-primary-100 rounded-full p-1 mr-2">
@@ -590,18 +593,18 @@ const ViewClient = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-medium text-manufacturing-800 truncate mb-1">
-                              {document.originalName}
+                              {document.document_name}
                             </h4>
                             <div className="flex items-center text-xs text-manufacturing-500 space-x-2">
-                              <span>{formatFileSize(document.size)}</span>
-                              <span>•</span>
                               <span>
-                                {document.mimeType
-                                  ?.split("/")[1]
-                                  ?.toUpperCase() || "FILE"}
+                                {formatFileSize(document.document_size)}
                               </span>
                               <span>•</span>
-                              <span>{formatDate(document.uploadDate)}</span>
+                              <span>{document.document_type}</span>
+                              <span>•</span>
+                              <span>
+                                {formatDate(document.document_created_at)}
+                              </span>
                             </div>
                           </div>
                         </div>
