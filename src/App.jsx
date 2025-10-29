@@ -17,6 +17,7 @@ import Process from "./components/pages/Process";
 import AddProcess from "./components/pages/AddProcess";
 import ViewProcess from "./components/pages/ViewProcess";
 import { setAuthToken } from "./services/api";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const token = localStorage.getItem("authToken");
@@ -24,31 +25,34 @@ function App() {
     setAuthToken(token);
   }
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<AdminLayout />}>
-        <Route path="/" element={<Product />} />
-        <Route path="/add-product" element={<AddProductForm />} />
-        <Route path="/edit-product/:id" element={<AddProductForm />} />
-        <Route path="/view-product/:id" element={<ViewProduct />} />
-        <Route path="/sku" element={<SKU />} />
-        <Route path="/add-sku" element={<AddSku />} />
-        <Route path="/edit-sku/:id" element={<AddSku />} />
-        <Route path="/view-sku/:id" element={<ViewSku />} />
-        <Route path="/clients" element={<Clients />} />
-        <Route path="/add-client" element={<AddClient />} />
-        <Route path="/edit-client/:id" element={<AddClient />} />
-        <Route path="/view-client/:id" element={<ViewClient />} />
-        <Route path="/suppliers" element={<Suppliers />} />
-        <Route path="/add-supplier" element={<AddSupplier />} />
-        <Route path="/edit-supplier/:id" element={<AddSupplier />} />
-        <Route path="/view-supplier/:id" element={<ViewSupplier />} />
-        <Route path="/process" element={<Process />} />
-        <Route path="/add-process" element={<AddProcess />} />
-        <Route path="/edit-process/:id" element={<AddProcess />} />
-        <Route path="/view-process/:id" element={<ViewProcess />} />
-      </Route>
-    </Routes>
+    <>
+      <Toaster position="top-right" reverseOrder={false} />
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route element={<AdminLayout />}>
+          <Route path="/product" element={<Product />} />
+          <Route path="/add-product" element={<AddProductForm />} />
+          <Route path="/edit-product/:id" element={<AddProductForm />} />
+          <Route path="/view-product/:id" element={<ViewProduct />} />
+          <Route path="/sku" element={<SKU />} />
+          <Route path="/add-sku" element={<AddSku />} />
+          <Route path="/edit-sku/:id" element={<AddSku />} />
+          <Route path="/view-sku/:id" element={<ViewSku />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/add-client" element={<AddClient />} />
+          <Route path="/edit-client/:id" element={<AddClient />} />
+          <Route path="/view-client/:id" element={<ViewClient />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/add-supplier" element={<AddSupplier />} />
+          <Route path="/edit-supplier/:id" element={<AddSupplier />} />
+          <Route path="/view-supplier/:id" element={<ViewSupplier />} />
+          <Route path="/process" element={<Process />} />
+          <Route path="/add-process" element={<AddProcess />} />
+          <Route path="/edit-process/:id" element={<AddProcess />} />
+          <Route path="/view-process/:id" element={<ViewProcess />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 

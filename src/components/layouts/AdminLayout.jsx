@@ -86,7 +86,7 @@ const AdminLayout = () => {
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
-    navigate("/login");
+    navigate("/");
   };
 
   const renderSectionHeader = (section = false) => {

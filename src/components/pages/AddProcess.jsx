@@ -57,14 +57,12 @@ const AddProcess = () => {
     console.log("Process Data Submitted:", data);
 
     try {
-      // UseRef ensures processId persists even if validation or partial failure occurs
-
       let processId = data.id || processIdRef.current || null;
       const { process_custom_fields, id, ...processPayload } = data;
 
-      // ✅ Step 1: Create or Update Process
+      
       if (processId) {
-        // 🔹 Update existing process
+      
         const updateRes = await ProcessService.updateProcess(
           processId,
           processPayload
@@ -74,7 +72,7 @@ const AddProcess = () => {
         }
         console.log("✅ Process updated:", processId);
       } else {
-        // 🔹 Create new process
+        
         const createRes = await ProcessService.createProcess(processPayload);
         if (!createRes?.success) {
           throw new Error(createRes?.message || "Failed to create process");
@@ -84,11 +82,11 @@ const AddProcess = () => {
         if (!processId) throw new Error("Process ID not found in response");
 
         processIdRef.current = processId;
-        setValue("id", processId); // keep id in form for retries
+        setValue("id", processId); 
         console.log("✅ Process created:", processId);
       }
 
-      // ✅ Step 2: Create or Update Process Custom Fields
+      
       for (const field of process_custom_fields) {
         const { id: fieldId, process_id, ...cleanField } = field;
 
@@ -100,7 +98,7 @@ const AddProcess = () => {
             ? 1
             : 0;
 
-        // 🔹 Only send dropdown_options for Dropdown fields
+       
         let fieldPayload;
         if (
           cleanField.field_type?.toLowerCase() === "dropdown" &&
