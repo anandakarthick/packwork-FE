@@ -60,19 +60,18 @@ const AddProcess = () => {
       let processId = data.id || processIdRef.current || null;
       const { process_custom_fields, id, ...processPayload } = data;
 
-      
+      // ✅ Step 1: Create or Update the Process
       if (processId) {
-      
         const updateRes = await ProcessService.updateProcess(
           processId,
           processPayload
         );
         if (!updateRes?.success) {
+          toast.error(updateRes?.message || "Failed to update process");
           throw new Error(updateRes?.message || "Failed to update process");
         }
         console.log("✅ Process updated:", processId);
       } else {
-        
         const createRes = await ProcessService.createProcess(processPayload);
         if (!createRes?.success) {
           throw new Error(createRes?.message || "Failed to create process");
@@ -82,15 +81,16 @@ const AddProcess = () => {
         if (!processId) throw new Error("Process ID not found in response");
 
         processIdRef.current = processId;
-        setValue("id", processId); 
+        setValue("id", processId);
         console.log("✅ Process created:", processId);
       }
 
-      
-      for (const field of process_custom_fields) {
+      // ✅ Step 2: Handle Custom Fields
+      for (let i = 0; i < process_custom_fields.length; i++) {
+        const field = process_custom_fields[i];
         const { id: fieldId, process_id, ...cleanField } = field;
 
-        // 🔹 Normalize "is_required" to 0 or 1
+        // Normalize `is_required`
         cleanField.is_required =
           cleanField.is_required === true ||
           cleanField.is_required === 1 ||
@@ -98,7 +98,7 @@ const AddProcess = () => {
             ? 1
             : 0;
 
-       
+        // Build payload
         let fieldPayload;
         if (
           cleanField.field_type?.toLowerCase() === "dropdown" &&
@@ -110,32 +110,53 @@ const AddProcess = () => {
           fieldPayload = { ...rest };
         }
 
-        if (fieldId) {
-          // 🔹 Update existing field
-          const fieldRes = await ProcessService.updateProcessCustomField(
-            fieldId,
-            fieldPayload
-          );
-          if (!fieldRes?.success) {
-            console.warn("⚠️ Failed to update field:", cleanField);
+        // ✅ Update or Create field
+        let fieldRes;
+        try {
+          if (fieldId) {
+            fieldRes = await ProcessService.updateProcessCustomField(
+              fieldId,
+              fieldPayload
+            );
+          } else {
+            fieldRes = await ProcessService.createProcessCustomFields(
+              processId,
+              fieldPayload
+            );
           }
-        } else {
-          // 🔹 Create new field
-          const fieldRes = await ProcessService.createProcessCustomFields(
-            processId,
-            fieldPayload
-          );
+
+          // ❌ If the field failed to save, stop execution immediately
           if (!fieldRes?.success) {
-            console.warn("⚠️ Failed to create field:", cleanField);
+            let errorMsg = fieldRes?.message || "Failed to save custom field";
+
+            if (
+              fieldRes?.error?.includes("Duplicate entry") ||
+              fieldRes?.message?.includes("Duplicate entry")
+            ) {
+              errorMsg = `Duplicate field: "${cleanField.field_label}" already exists in this process.`;
+            }
+
+            toast.error(errorMsg);
+            throw new Error(errorMsg); // ⛔ Stop loop and trigger outer catch
           }
+
+          // ✅ If newly created, update its ID locally to prevent re-saving on retry
+          if (!fieldId && fieldRes?.data?.id) {
+            process_custom_fields[i].id = fieldRes.data.id;
+          }
+        } catch (err) {
+          console.error("❌ Error saving field:", cleanField, err);
+          const errorMsg = `Error saving field "${cleanField.field_label}"`;
+          toast.error(errorMsg);
+          throw err; // ⛔ Stop further processing
         }
       }
 
-      // ✅ Step 3: Final success
+      // ✅ Success toast
       toast.success(
         processIdRef.current || id
-          ? "✅ Process updated successfully!"
-          : "✅ Process and custom fields created successfully!"
+          ? "Process updated successfully!"
+          : "Process and custom fields created successfully!"
       );
 
       reset();
@@ -254,7 +275,6 @@ const AddProcess = () => {
         onSubmit={handleSubmit(onSubmit)}
         submitText={id ? "Update Process" : "Create Process"}
       >
-        {/* ---------- BASIC INFO ---------- */}
         <div className="card-corrugated p-4 space-y-3">
           <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
             <div className="bg-primary-100 rounded-full p-1 mr-2">
@@ -348,7 +368,7 @@ const AddProcess = () => {
                 className="border-b border-gray-200 pb-4 mb-4 space-y-3"
               >
                 {/* MAIN FIELD ROW */}
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 items-end">
                   {/* FIELD LABEL */}
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
@@ -362,9 +382,22 @@ const AddProcess = () => {
                           required: "Field label is required",
                         }
                       )}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                        errors?.process_custom_fields?.[index]?.field_label
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
                       placeholder="Enter field label"
                     />
+                    {errors?.process_custom_fields?.[index]?.field_label && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {
+                          errors.process_custom_fields[index].field_label
+                            .message
+                        }
+                      </p>
+                    )}
                   </div>
 
                   {/* FIELD TYPE */}
@@ -379,12 +412,26 @@ const AddProcess = () => {
                           required: "Field type is required",
                         }
                       )}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                        errors?.process_custom_fields?.[index]?.field_type
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
                     >
                       <option value="text">Text</option>
                       <option value="number">Number</option>
                       <option value="dropdown">Dropdown</option>
+                      <option value="date">Date</option>
+                      <option value="email">Email</option>
+                      <option value="checkbox">Checkbox</option>
+                      <option value="textarea">Textarea</option>
                     </select>
+                    {errors?.process_custom_fields?.[index]?.field_type && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.process_custom_fields[index].field_type.message}
+                      </p>
+                    )}
                   </div>
 
                   {/* FIELD ORDER */}
@@ -400,10 +447,55 @@ const AddProcess = () => {
                           required: "Order is required",
                         }
                       )}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                        errors?.process_custom_fields?.[index]?.field_order
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
                       placeholder="Order"
                     />
+                    {errors?.process_custom_fields?.[index]?.field_order && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {
+                          errors.process_custom_fields[index].field_order
+                            .message
+                        }
+                      </p>
+                    )}
                   </div>
+                  {fieldType !== "dropdown" && (
+                    <div>
+                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                        Default Value <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        {...register(
+                          `process_custom_fields.${index}.default_value`,
+                          {
+                            required: "Default value is required",
+                          }
+                        )}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                          errors?.process_custom_fields?.[index]?.default_value
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        placeholder="Default order"
+                      />
+                      {errors?.process_custom_fields?.[index]
+                        ?.default_value && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {
+                            errors.process_custom_fields[index].default_value
+                              .message
+                          }
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* REQUIRED CHECKBOX */}
                   <label className="flex align-items-center md:justify-center">
@@ -431,7 +523,7 @@ const AddProcess = () => {
                 </div>
 
                 {/* SHOW DROPDOWN OPTION SECTION ONLY IF SELECT TYPE */}
-                {fieldType === "Dropdown" && (
+                {fieldType === "dropdown" && (
                   <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mt-2">
                     <p className="text-xs font-medium text-gray-700 mb-2">
                       Add Options to the select field

@@ -178,7 +178,7 @@ const ViewProcess = () => {
                 {process.customFields && process.customFields.length > 0 ? (
                   process.customFields.map((field, index) => (
                     <div key={index} className="card-corrugated p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <p className="text-xs text-manufacturing-500 capitalize">
                             Field Label
@@ -201,6 +201,14 @@ const ViewProcess = () => {
                           </p>
                           <p className="font-medium text-manufacturing-800 text-sm">
                             {field.field_order}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-manufacturing-500 capitalize">
+                            Default Value
+                          </p>
+                          <p className="font-medium text-manufacturing-800 text-sm">
+                            {field.default_value}
                           </p>
                         </div>
                       </div>
