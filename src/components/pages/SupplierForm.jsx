@@ -492,7 +492,7 @@ const SupplierForm = ({
                     ? "border-red-500 bg-red-50"
                     : "border-gray-300 hover:border-gray-400"
                 }`}
-                placeholder="+91-9876543210"
+                placeholder="9876543210"
               />
               {errors.mobile_number && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
@@ -514,7 +514,7 @@ const SupplierForm = ({
                     ? "border-red-500 bg-red-50"
                     : "border-gray-300 hover:border-gray-400"
                 }`}
-                placeholder="+91-9876543211"
+                placeholder="9876543211"
               />
               {errors.alternative_mobile_number && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
@@ -631,7 +631,7 @@ const SupplierForm = ({
                 />
               )}
             </div>
-            <div>
+            {/* <div>
               <label className="block text-xs font-medium text-manufacturing-700 mb-1">
                 Lead Time (Days)
               </label>
@@ -651,7 +651,7 @@ const SupplierForm = ({
                   {errors.credit_limit.message}
                 </p>
               )}
-            </div>
+            </div> */}
 
             {/* Notes - spans 2.5 columns */}
             <div className="col-span-2">
@@ -751,29 +751,6 @@ const SupplierForm = ({
               </div>
 
               <div>
-                <label className="text-xs font-medium">
-                  Pincode <span className="text-red-500">*</span>
-                </label>
-                <input
-                  {...register(`addresses.0.pincode`, {
-                    required: "Pincode is required",
-                  })}
-                  placeholder="Enter 6 digit Pincode"
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.pincode
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                />
-                {errors.addresses?.[0]?.pincode && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.pincode.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
                 <label className="text-xs font-medium">
                   Address <span className="text-red-500">*</span>
                 </label>
@@ -891,6 +868,28 @@ const SupplierForm = ({
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
                     {errors.addresses?.[0]?.city_id.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium">
+                  Pincode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register(`addresses.0.pincode`, {
+                    required: "Pincode is required",
+                  })}
+                  placeholder="Enter 6 digit Pincode"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                    errors.addresses?.[0]?.pincode
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                />
+                {errors.addresses?.[0]?.pincode && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.addresses?.[0]?.pincode.message}
                   </p>
                 )}
               </div>
