@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, useFieldArray, set } from "react-hook-form";
 import FormLayout from "../form/FormLayout";
@@ -10,6 +10,7 @@ import { CommonService } from "../../services/CommonServices";
 const AddClient = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const customerIdRef = useRef(null);
 
   const [client, setClient] = useState(null);
 
@@ -40,7 +41,7 @@ const AddClient = () => {
       email_id: "",
       mobile_number: "",
       alternative_mobile_number: "",
-      business_type: "",
+      business_type_id: "",
       gst: "",
       pan_number: "",
       credit_limit: 0,
@@ -62,7 +63,7 @@ const AddClient = () => {
           city_id: "",
           state_id: "",
           pincode: "",
-          country: "",
+          country_id: "",
         },
         {
           id: "",
@@ -77,7 +78,7 @@ const AddClient = () => {
           city_id: "",
           state_id: "",
           pincode: "",
-          country: "",
+          country_id: "",
         },
       ],
       documents: [],
@@ -133,18 +134,12 @@ const AddClient = () => {
 
   const hasGst = watch("has_gst");
 
+ 
+
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
     clearErrors();
     let hasErrors = false;
-
-    const textPattern = /^[A-Za-z0-9\s]+$/;
-    const mobilePattern = /^[6-9]\d{9}$/;
-    const emailPattern = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    const pincodePattern = /^[1-9][0-9]{5}$/;
-    const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    const gstPattern =
-      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
     const validateField = (condition, field, message) => {
       if (condition) {
@@ -155,130 +150,10 @@ const AddClient = () => {
       }
     };
 
-    // validateField(
-    //   !data.customer_name?.trim(),
-    //   "customer_name",
-    //   "Customer name is required."
-    // );
-    // validateField(
-    //   data.customer_name && !textPattern.test(data.customer_name),
-    //   "customer_name",
-    //   "Customer name can only contain letters and numbers."
-    // );
-    // validateField(!data.email_id?.trim(), "email_id", "Email ID is required.");
-    // validateField(
-    //   data.email_id && !emailPattern.test(data.email_id),
-    //   "email_id",
-    //   "Enter a valid email address."
-    // );
-    // validateField(
-    //   !data.mobile_number?.trim(),
-    //   "mobile_number",
-    //   "Mobile number is required."
-    // );
-    // validateField(
-    //   data.mobile_number && !mobilePattern.test(data.mobile_number),
-    //   "mobile_number",
-    //   "Enter a valid 10-digit mobile number."
-    // );
-    // validateField(
-    //   !data.business_type?.trim(),
-    //   "business_type",
-    //   "Business type is required."
-    // );
-    // validateField(
-    //   !data.payment_terms?.trim(),
-    //   "payment_terms",
-    //   "Payment terms are required."
-    // );
-    // validateField(
-    //   !data.pan_number?.trim(),
-    //   "pan_number",
-    //   "PAN number is required."
-    // );
-    // validateField(
-    //   data.pan_number && !panPattern.test(data.pan_number),
-    //   "pan_number",
-    //   "Invalid PAN format."
-    // );
-
-    // if (data.has_gst === true || data.has_gst === "true") {
-    //   validateField(
-    //     !data.gst_number?.trim(),
-    //     "gst_number",
-    //     "GST number is required when GST is applicable."
-    //   );
-    //   validateField(
-    //     data.gst_number && !gstPattern.test(data.gst_number),
-    //     "gst_number",
-    //     "Invalid GST number format."
-    //   );
-    // }
-
-    // data.addresses.forEach((addr, index) => {
-    //   validateField(
-    //     !addr.contact_person_name?.trim(),
-    //     `addresses.${index}.contact_person_name`,
-    //     "Contact person name is required."
-    //   );
-    //   validateField(
-    //     !addr.contact_email?.trim(),
-    //     `addresses.${index}.contact_email`,
-    //     "Email address is required."
-    //   );
-    //   validateField(
-    //     addr.contact_email && !emailPattern.test(addr.contact_email),
-    //     `addresses.${index}.contact_email`,
-    //     "Enter a valid email address."
-    //   );
-    //   validateField(
-    //     !addr.contact_person_mobile_number?.trim(),
-    //     `addresses.${index}.contact_person_mobile_number`,
-    //     "Phone number is required."
-    //   );
-    //   validateField(
-    //     addr.contact_person_mobile_number &&
-    //       !mobilePattern.test(addr.contact_person_mobile_number),
-    //     `addresses.${index}.contact_person_mobile_number`,
-    //     "Enter a valid 10-digit phone number."
-    //   );
-    //   validateField(
-    //     !addr.address?.trim(),
-    //     `addresses.${index}.address`,
-    //     "Address is required."
-    //   );
-    //   validateField(
-    //     !addr.city_id,
-    //     `addresses.${index}.city_id`,
-    //     "City is required."
-    //   );
-    //   validateField(
-    //     !addr.state_id,
-    //     `addresses.${index}.state_id`,
-    //     "State is required."
-    //   );
-    //   validateField(
-    //     !addr.country,
-    //     `addresses.${index}.country`,
-    //     "Country is required."
-    //   );
-    //   validateField(
-    //     !addr.pincode?.trim(),
-    //     `addresses.${index}.pincode`,
-    //     "Pincode is required."
-    //   );
-    //   validateField(
-    //     addr.pincode && !pincodePattern.test(addr.pincode),
-    //     `addresses.${index}.pincode`,
-    //     "Enter a valid 6-digit pincode."
-    //   );
-    // });
-
     if (hasErrors) {
       toast.error("Please fix validation errors before submitting.");
       return;
     }
-
     clearErrors();
 
     try {
@@ -287,9 +162,9 @@ const AddClient = () => {
         customer_type: data.customer_type,
         email_id: data.email_id,
         mobile_number: data.mobile_number,
-        business_type_id: data.business_type,
+        business_type_id: data.business_type_id,
         pan_number: data.pan_number,
-        payment_term_id: data.payment_terms,
+        payment_term_id: data.payment_term_id,
         alternative_mobile_number: data.alternative_mobile_number || null,
         credit_limit: data.credit_limit || 0,
         notes: data.notes || "",
@@ -297,92 +172,114 @@ const AddClient = () => {
         gst_number: data.gst_number || "",
       };
 
-      // 🔹 Step 1: Create customer
-      const customerRes = await ClientService.createClient(customerPayload);
-      console.log("Customer response:", customerRes);
+      let customerId = data.id || customerIdRef.current || id || null;
 
-      if (!customerRes?.success) {
-        throw new Error(customerRes?.message || "Failed to create customer");
-      }
-
-      const customerId = customerRes?.data?.id;
-      if (!customerId) {
-        throw new Error("Customer ID not found in response");
-      }
-
-      console.log("✅ Customer created:", customerId);
-
-      // 🔹 Step 2: Create customer addresses
-      const addressPayloads = data.addresses.map((addr) => ({
-        customer_id: customerId,
-        type: addr.type,
-        contact_person_name: addr.contact_person_name,
-        contact_email: addr.contact_email,
-        contact_person_mobile_number: addr.contact_person_mobile_number,
-        address: addr.address,
-        city_id: addr.city,
-        state_id: addr.state,
-        country_id: addr.country,
-        pincode: addr.pincode,
-      }));
-
-      for (const payload of addressPayloads) {
-        const addrRes = await ClientService.createCustomerAddress(
-          payload,
-          customerId
+      let customerRes;
+      if (customerId) {
+        customerRes = await ClientService.updateClient(
+          customerId,
+          customerPayload
         );
-        if (!addrRes?.success) {
-          throw new Error(
-            addrRes?.message || "Failed to create customer address"
+        if (!customerRes?.success) {
+          throw new Error(customerRes?.message || "Failed to update customer");
+        }
+        console.log("✅ Customer updated:", customerId);
+      } else {
+        customerRes = await ClientService.createClient(customerPayload);
+        if (!customerRes?.success) {
+          throw new Error(customerRes?.message || "Failed to create customer");
+        }
+
+        customerId = customerRes?.data?.id;
+        if (!customerId) throw new Error("Customer ID not found in response");
+        console.log("✅ Customer created:", customerId);
+
+        customerIdRef.current = customerId;
+
+        setValue("id", customerId);
+      }
+
+      for (let i = 0; i < (data.addresses || []).length; i++) {
+        const original = data.addresses[i];
+
+        const {
+          id: _addrId,
+          customer_id: _custId,
+          company_id,
+          created_by,
+          updated_by,
+          created_at,
+          updated_at,
+          country_name,
+          state_name,
+          city_name,
+          ...cleanAddress
+        } = original;
+
+        if (_addrId) {
+          const updatePayload = { ...cleanAddress };
+          const addrRes = await ClientService.updateCustomerAddress(
+            _addrId,
+            updatePayload
           );
+          if (!addrRes?.success) {
+            throw new Error(addrRes?.message || "Failed to update address");
+          }
+        } else {
+          const createPayload = { ...cleanAddress };
+          const addrRes = await ClientService.createCustomerAddress(
+            createPayload,
+            customerId
+          );
+          if (!addrRes?.success) {
+            throw new Error(addrRes?.message || "Failed to create address");
+          }
         }
       }
 
-      // 🔹 Step 3: Upload documents (if any)
       let uploadedDocumentIds = [];
-      if (data.documents && data.documents.length > 0) {
+      if (Array.isArray(data.documents) && data.documents.length > 0) {
         for (const doc of data.documents) {
-          const formData = new FormData();
-          formData.append("document", doc.file);
-          formData.append("document_name", doc.name || doc.file.name);
-
-          const uploadRes = await CommonService.uploadDocuments(formData);
-          console.log("Document uploaded:", uploadRes?.data);
-
-          if (!uploadRes?.success) {
-            throw new Error(uploadRes?.message || "Failed to upload document");
-          }
-
-          if (uploadRes?.data?.id) {
-            uploadedDocumentIds.push(uploadRes.data.id);
-          }
-        }
-      }
-
-      console.log("✅ Documents uploaded:", uploadedDocumentIds);
-
-      // 🔹 Step 4: Link documents
-      if (uploadedDocumentIds.length > 0) {
-        for (const docId of uploadedDocumentIds) {
-          const linkRes = await ClientService.linkCustomerToDocuments(
-            customerId,
-            {
-              document_id: docId,
-              is_active: 1,
+          if (doc.file instanceof File) {
+            const formData = new FormData();
+            formData.append("document", doc.file);
+            formData.append("document_name", doc.name || doc.file.name);
+            const uploadRes = await CommonService.uploadDocuments(formData);
+            if (!uploadRes?.success) {
+              throw new Error(
+                uploadRes?.message || "Failed to upload document"
+              );
             }
-          );
-          if (!linkRes?.success) {
-            throw new Error(
-              linkRes?.message || "Failed to link document to customer"
+            if (uploadRes?.data?.id)
+              uploadedDocumentIds.push(uploadRes.data.id);
+          }
+        }
+
+        if (uploadedDocumentIds.length > 0) {
+          for (const docId of uploadedDocumentIds) {
+            const linkRes = await ClientService.linkCustomerToDocuments(
+              customerId,
+              {
+                document_id: docId,
+                is_active: 1,
+              }
             );
+            if (!linkRes?.success) {
+              throw new Error(linkRes?.message || "Failed to link document");
+            }
           }
         }
       }
 
-      // ✅ Final success
-      toast.success("✅ Customer and documents saved successfully!");
+      toast.success(
+        customerIdRef.current || id
+          ? "✅ Customer updated successfully!"
+          : "✅ Customer created successfully!"
+      );
+
       reset();
       setUploadedDocuments([]);
+
       setTimeout(() => navigate("/clients"), 100);
     } catch (error) {
       console.error("❌ Error submitting customer data:", error);
@@ -406,7 +303,7 @@ const AddClient = () => {
       city_id: "",
       state_id: "",
       pincode: "",
-      country: "",
+      country_id: "",
     });
     setAddressOptions((prev) => [...prev, { states: [], cities: [] }]);
   };
@@ -416,14 +313,41 @@ const AddClient = () => {
       const fetchClient = async () => {
         try {
           const response = await ClientService.getClientById(id);
-          setClient(response);
+          const clientAddress = await ClientService.getClientAddressById(id);
+          const documents = await ClientService.getCustomerAllDocuments(id);
 
-          // ✅ Set form values for editing
+          // ✅ Transform API documents into UI-friendly format
+          const formattedDocuments = (documents?.data || []).map((doc) => ({
+            id: doc.id,
+            name: doc.document_name,
+            file: null, // no actual File object when loaded from server
+            originalName: doc.document_name,
+            size: Number(doc.document_size),
+            type:
+              doc.document_type === "pdf"
+                ? "application/pdf"
+                : `application/${doc.document_type}`,
+            uploadedOn: new Date(doc.document_created_at),
+            url: doc.document, // ✅ add this for viewing/downloading
+            isFromServer: true, // ✅ flag to distinguish server files
+          }));
+
+          // ✅ Set client data
+          setClient({
+            ...response?.data,
+            addresses: clientAddress?.data || [],
+            documents: documents?.data || [],
+          });
+
+          // ✅ Set uploadedDocuments for UI
+          setUploadedDocuments(formattedDocuments);
+
+          // ✅ Reset form with fetched values
           reset({
-            ...response,
+            ...response?.data,
             addresses:
-              response.addresses && response.addresses.length > 0
-                ? response.addresses
+              clientAddress?.data?.length > 0
+                ? clientAddress?.data
                 : [
                     {
                       id: "",
@@ -438,7 +362,7 @@ const AddClient = () => {
                       city_id: "",
                       state_id: "",
                       pincode: "",
-                      country: "",
+                      country_id: "",
                     },
                     {
                       id: "",
@@ -453,7 +377,7 @@ const AddClient = () => {
                       city_id: "",
                       state_id: "",
                       pincode: "",
-                      country: "",
+                      country_id: "",
                     },
                   ],
           });
@@ -461,9 +385,11 @@ const AddClient = () => {
           console.error("Error fetching client:", error);
         }
       };
+
       fetchClient();
     }
   }, [id, reset]);
+
   useEffect(() => {
     setValue("documents", uploadedDocuments);
   }, [uploadedDocuments, setValue]);

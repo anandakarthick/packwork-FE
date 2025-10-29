@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import CustomFieldManager from "./CustomFieldManager";
+import { CommonService } from "../../services/CommonServices";
 
 const SupplierForm = ({
   register,
@@ -38,6 +39,14 @@ const SupplierForm = ({
   clearErrors,
   uploadedDocuments,
   setUploadedDocuments,
+  paymentTerms,
+  businessTypes,
+  countries,
+  states,
+  cities,
+  setCountries,
+  setStates,
+  setCities,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -50,7 +59,12 @@ const SupplierForm = ({
 
   const [previewFile, setPreviewFile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
-
+  const [addressOptions, setAddressOptions] = useState(
+    fields.map(() => ({
+      states: [],
+      cities: [],
+    }))
+  );
   const openDocumentModal = () => {
     if (uploadedDocuments.length >= 10) {
       toast.error("Maximum 10 documents allowed.");
@@ -110,15 +124,6 @@ const SupplierForm = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const handleDelete = (index) => {
-    if (
-      window.confirm("Are you sure you want to delete this shipping address?")
-    ) {
-      remove(index + 1);
-      if (activeIndex >= index && activeIndex > 0)
-        setActiveIndex(activeIndex - 1);
-    }
-  };
   const handleModalFileDrop = (e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
@@ -185,6 +190,47 @@ const SupplierForm = ({
   const handleRefresh = () => {
     console.log(`Field removed - function not implemented`);
   };
+
+  const fetchStates = async (countryId, index) => {
+    try {
+      const res = await CommonService.getStatesByCountry(countryId);
+      if (res.success) {
+        setAddressOptions((prev) => {
+          const updated = [...prev];
+          updated[index].states = res.data;
+          updated[index].cities = []; // reset cities
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching states:", err);
+    }
+  };
+
+  const fetchCities = async (stateId, index) => {
+    try {
+      const res = await CommonService.getCitiesByState(stateId);
+      if (res.success) {
+        setAddressOptions((prev) => {
+          const updated = [...prev];
+          updated[index].cities = res.data;
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching cities:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (countries.length === 1) {
+      const singleCountryId = countries[0].id;
+
+      // ✅ Set billing address country (index 0)
+      setValue("addresses.0.country_id", singleCountryId);
+      fetchStates(singleCountryId, 0);
+    }
+  }, [countries]);
 
   return (
     <>
@@ -325,7 +371,7 @@ const SupplierForm = ({
                 Business Type <span className="text-red-500">*</span>
               </label>
               <select
-                {...register("business_type", {
+                {...register("business_type_id", {
                   required: "Business type is required",
                 })}
                 onChange={(e) => {
@@ -333,9 +379,9 @@ const SupplierForm = ({
                   if (value === "manage") {
                     setActiveFieldType("business_type");
                     setShowManageModal(true); // ✅ Open modal
-                    setValue("business_type", ""); // Clear the selection
+                    setValue("business_type_id", ""); // Clear the selection
                   } else {
-                    setValue("business_type", value);
+                    setValue("business_type_id", value);
                   }
                 }}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors"
@@ -347,27 +393,18 @@ const SupplierForm = ({
                 >
                   ➕ Manage
                 </option>
-                <option value="E-commerce">E-commerce</option>
-                <option value="Retail">Retail</option>
-                <option value="Wholesale">Wholesale</option>
+                {businessTypes?.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.display_label}
+                  </option>
+                ))}
               </select>
 
-              {errors.business_type && (
+              {errors.business_type_id && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.business_type.message}
+                  {errors.business_type_id.message}
                 </p>
-              )}
-
-              {/* --- Custom Field Modal --- */}
-              {showManageModal && (
-                <CustomFieldManager
-                  isOpen={showManageModal}
-                  onClose={() => setShowManageModal(false)}
-                  onFieldAdded={handleFieldAdded}
-                  fieldType="business_type"
-                  onRefresh={handleRefresh}
-                />
               )}
             </div>
 
@@ -489,7 +526,7 @@ const SupplierForm = ({
                 Payment Terms <span className="text-red-500">*</span>
               </label>
               <select
-                {...register("payment_terms", {
+                {...register("payment_term_id", {
                   required: "Payment terms is required",
                 })}
                 onChange={(e) => {
@@ -497,9 +534,9 @@ const SupplierForm = ({
                   if (value === "manage") {
                     setActiveFieldType("payment_terms");
                     setShowManageModal(true); // ✅ Open modal
-                    setValue("payment_terms", ""); // Clear the selection
+                    setValue("payment_term_id", ""); // Clear the selection
                   } else {
-                    setValue("payment_terms", value);
+                    setValue("payment_term_id", value);
                   }
                 }}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors"
@@ -511,14 +548,17 @@ const SupplierForm = ({
                 >
                   ➕ Manage
                 </option>
-                <option value="Net-30">Net-30</option>
-                <option value="Net-45">Net-45</option>
+                {paymentTerms.map((term) => (
+                  <option key={term.id} value={term.id}>
+                    {term.display_label}
+                  </option>
+                ))}
               </select>
 
-              {errors.payment_terms && (
+              {errors.payment_term_id && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.payment_terms.message}
+                  {errors.payment_term_id.message}
                 </p>
               )}
 
@@ -598,20 +638,20 @@ const SupplierForm = ({
                   Phone <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register(`addresses.0.phone`, {
+                  {...register(`addresses.0.contact_person_mobile_number`, {
                     required: "Phone number is required",
                   })}
                   placeholder="Enter Phone Number"
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.phone
+                    errors.addresses?.[0]?.contact_person_mobile_number
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
                 />
-                {errors.addresses?.[0]?.phone && (
+                {errors.addresses?.[0]?.contact_person_mobile_number && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.phone.message}
+                    {errors.addresses?.[0]?.contact_person_mobile_number.message}
                   </p>
                 )}
               </div>
@@ -621,20 +661,20 @@ const SupplierForm = ({
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register(`addresses.0.email`, {
+                  {...register(`addresses.0.contact_email`, {
                     required: "Email is required",
                   })}
                   placeholder="Enter Email Address"
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.email
+                    errors.addresses?.[0]?.contact_email
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
                 />
-                {errors.addresses?.[0]?.email && (
+                {errors.addresses?.[0]?.contact_email && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.email.message}
+                    {errors.addresses?.[0]?.contact_email.message}  
                   </p>
                 )}
               </div>
@@ -688,23 +728,35 @@ const SupplierForm = ({
 
               <div>
                 <label className="text-xs font-medium">
-                  City <span className="text-red-500">*</span>
+                  Country <span className="text-red-500">*</span>
                 </label>
-                <input
-                  {...register(`addresses.0.city`, {
-                    required: "City is required",
+                <select
+                  {...register(`addresses.0.country_id`, {
+                    required: "Country is required",
                   })}
-                  placeholder="Enter City"
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.city
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setValue(`addresses.0.country_id`, value);
+                    fetchStates(value, 0);
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                    errors.addresses?.[0]?.country_id
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
-                />
-                {errors.addresses?.[0]?.city && (
+                >
+                  <option value="">Select Country</option>s
+                  {countries.length > 0 &&
+                    countries.map((country, index) => (
+                      <option key={index} value={country.id}>
+                        {country.country_name}
+                      </option>
+                    ))}
+                </select>
+                {errors.addresses?.[0]?.country_id && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.city.message}
+                    {errors.addresses?.[0]?.country_id.message}
                   </p>
                 )}
               </div>
@@ -713,47 +765,61 @@ const SupplierForm = ({
                 <label className="text-xs font-medium">
                   State <span className="text-red-500">*</span>
                 </label>
-                <input
-                  {...register(`addresses.0.state`, {
-                    required: "State is required",
+                <select
+                  {...register(`addresses.0.state_id`, {
+                    required: "state is required",
                   })}
-                  placeholder="Select State"
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.state
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setValue(`addresses.0.state_id`, value);
+                    fetchCities(value, 0);
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                    errors.addresses?.[0]?.state_id
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
-                />
-                {errors.addresses?.[0]?.state && (
+                >
+                  <option value="">Select State</option>
+                  {addressOptions[0]?.states.map((state) => (
+                    <option key={state.id} value={state.id}>
+                      {state.state_name}
+                    </option>
+                  ))}
+                </select>
+                {errors.addresses?.[0]?.state_id && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.state.message}
+                    {errors.addresses?.[0]?.state_id.message}
                   </p>
                 )}
               </div>
 
               <div>
                 <label className="text-xs font-medium">
-                  Country <span className="text-red-500">*</span>
+                  City <span className="text-red-500">*</span>
                 </label>
                 <select
-                  {...register(`addresses.0.country`, {
-                    required: "Country is required",
+                  {...register(`addresses.0.city_id`, {
+                    required: "city is required",
                   })}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.country
+                    errors.addresses?.[0]?.city_id
                       ? "border-red-500 bg-red-50"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
                 >
-                  <option value="India">India</option>
-                  <option value="USA">USA</option>
-                  <option value="UK">UK</option>
+                  <option value="">Select City</option>
+                  {addressOptions[0]?.cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.city_name}
+                    </option>
+                  ))}
                 </select>
-                {errors.addresses?.[0]?.country && (
+                {errors.addresses?.[0]?.city_id && (
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.country.message}
+                    {errors.addresses?.[0]?.city_id.message}
                   </p>
                 )}
               </div>

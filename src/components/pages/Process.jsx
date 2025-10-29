@@ -6,6 +6,7 @@ import CommonHeader from "../header/CommonHeader";
 import { ClientService } from "../../services/ClientServices";
 import { Truck } from "lucide-react";
 import ProcessService from "../../services/ProcessServices";
+import toast from "react-hot-toast";
 
 const Process = () => {
   const navigate = useNavigate();
@@ -39,7 +40,10 @@ const Process = () => {
           const customFields = await ProcessService.getProcessCustomFields(
             process.id
           );
-          console.log(`Custom fields for process ${process.id}:`, customFields?.data);
+          console.log(
+            `Custom fields for process ${process.id}:`,
+            customFields?.data
+          );
           return {
             ...process,
             customFields: customFields?.data || [],
@@ -72,25 +76,41 @@ const Process = () => {
     setSearchTerm(searchTerm);
   };
   const handleDelete = async (row) => {
-    if (window.confirm("Are you sure you want to delete this process?")) {
-      setLoading(true);
-      ProcessService.deleteProcess(row.id)
-        .then((response) => {
-          if (response.success) {
-            fetchProcessData();
-          } else {
-            alert(response.message || "Failed to delete process");
-          }
-        })
-        .catch((error) => {
-          console.error("Error deleting process:", error);
-          alert("Failed to delete process");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this process?"
+    );
+    if (!confirmDelete) return;
+
+    setLoading(true);
+    try {
+      const response = await ProcessService.getProcessCustomFields(row.id);
+      if (response?.success && Array.isArray(response.data)) {
+        const deletePromises = response.data.map((field) =>
+          ProcessService.deleteProcessCustomField(field.id)
+        );
+
+        await Promise.allSettled(deletePromises);
+      }
+
+      const processDeleteRes = await ProcessService.deleteProcess(row.id);
+      if (processDeleteRes?.success) {
+        toast.success("✅ Process and custom fields deleted successfully!");
+        await fetchProcessData();
+      } else {
+        throw new Error(
+          processDeleteRes?.message || "Failed to delete process"
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error deleting process:", error);
+      toast.error(
+        error.message || "Failed to delete process. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
+
   console.log("process Data:", processData);
   const handleAddProcess = () => {
     console.log("Add Process clicked");

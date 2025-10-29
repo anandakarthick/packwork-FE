@@ -68,6 +68,15 @@ export const ClientService = {
       return { success: false, message: error.response?.data?.message };
     }
   },
+  updateCustomerAddress: async (id, data) => {
+    try {
+      const response = await api.put(`/customer/addresses/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating billing address:", error);
+      return { success: false, message: error.response?.data?.message };
+    }
+  },
 
   getClientAddressById: async (id) => {
     try {
