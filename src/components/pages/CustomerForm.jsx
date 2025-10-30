@@ -259,24 +259,38 @@ const CustomerForm = ({
 
   const handlePreview = (document) => {
     console.log(document);
-    let fileUrl = "";
-    if (document.file instanceof File) {
-      fileUrl = URL.createObjectURL(document.file);
-    } else if (document.document_id) {
-      fileUrl = document.url;
+    if (document?.url) {
+      try {
+        if (!document?.url) {
+          toast.error("Document URL not found");
+          return;
+        }
+
+        window.open(document.url, "_blank");
+      } catch (error) {
+        console.error("View error:", error);
+        toast.error("Failed to view document");
+      }
     } else {
-      toast.error("Preview not available for this file");
-      return;
+      let fileUrl = "";
+      if (document.file instanceof File) {
+        fileUrl = URL.createObjectURL(document.file);
+      } else if (document.document_id) {
+        fileUrl = document.url;
+      } else {
+        toast.error("Preview not available for this file");
+        return;
+      }
+
+      setPreviewFile({
+        url: fileUrl,
+        type: document.type,
+        name: document.name || document.originalName || "Document",
+        isFromServer: !!document.url,
+      });
+
+      setShowPreview(true);
     }
-
-    setPreviewFile({
-      url: fileUrl,
-      type: document.type,
-      name: document.name || document.originalName || "Document",
-      isFromServer: !!document.url,
-    });
-
-    setShowPreview(true);
   };
 
   const closePreview = () => {
@@ -332,7 +346,6 @@ const CustomerForm = ({
       setTimeout(() => {
         setValue("addresses.1.city_id", billing.city_id || "");
       }, 500);
-      
 
       // Clear validation errors for shipping fields
       [
@@ -350,38 +363,110 @@ const CustomerForm = ({
     }
   };
 
+  const getPANFromGSTIN = (gstin) => {
+    if (!gstin || gstin.length < 12) return "";
+    return gstin.substring(2, 12); // extract 3rd to 12th character
+  };
+
   const handleFetchGST = async () => {
-    console.log("Fetch GST clicked", watch("gst_number"));
+    const gstNumber = watch("gst_number");
+    console.log("Fetch GST clicked", gstNumber);
+
     try {
-      const response = await CommonService.checkGSTIN(watch("gst_number"));
-      console.log("Response:", response);
+      const gstData = await CommonService.checkGSTIN(gstNumber);
+      console.log("GST Response:", gstData);
 
-      if (response?.flag) {
-        const gstData = response.data;
+      if (gstData && gstData.gstin) {
+        const addr = gstData.pradr?.addr || {};
 
-        // ✅ Set GST Number
+        // ✅ Set GST number and company name
         setValue("gst_number", gstData.gstin);
+        setValue("customer_name", gstData.tradeNam || gstData.lgnm || "");
+        setValue("pan_number", getPANFromGSTIN(gstData.gstin));
 
-        // ✅ Set Company Name (use tradeNam if available, else legal name)
-        setValue("company_name", gstData.tradeNam || gstData.lgnm || "");
+        // ✅ Build address
+        let fullAddress = "";
+        if (gstData?.pradr?.adr) {
+          fullAddress = gstData.pradr.adr;
 
-        // ✅ Optional: Set Address Fields if available
-        // if (gstData.pradr?.addr) {
-        //   const addr = gstData.pradr.addr;
-        //   setValue("address_line1", `${addr.bnm || ""} ${addr.bno || ""} ${addr.st || ""}`.trim());
-        //   setValue("city", addr.loc || addr.dst || "");
-        //   setValue("state", addr.stcd || "");
-        //   setValue("pincode", addr.pncd || "");
-        // }
+          // Remove city, district, state code, pincode, and country (with commas/periods around them)
+          const removeList = [
+            addr.loc,
+            addr.dst,
+            addr.stcd,
+            addr.pncd,
+            "India",
+          ].filter(Boolean);
+
+          removeList.forEach((term) => {
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // escape regex chars
+            const regex = new RegExp(
+              `([,.;\\s]*)${escapedTerm}([,.;\\s]*)`,
+              "gi"
+            );
+            fullAddress = fullAddress.replace(regex, " ");
+          });
+
+          // Clean up leftover commas, dots, spaces
+          fullAddress = fullAddress
+            .replace(/[,.;]+/g, " ") // remove leftover punctuation
+            .replace(/\s+/g, " ") // remove extra spaces
+            .trim();
+        } else {
+          // Construct from address parts if adr not present
+          fullAddress = `${addr.bnm || ""} ${addr.bno || ""} ${
+            addr.st || ""
+          }`.trim();
+        }
+
+        // ✅ Set address and pincode
+        setValue(`addresses.0.address`, fullAddress);
+        setValue(`addresses.0.pincode`, addr.pncd || "");
+
+        // ✅ Country (default India)
+        const selectedCountry = countries.find(
+          (c) => c.country_name.toLowerCase() === "india"
+        );
+        if (selectedCountry) {
+          setValue(`addresses.0.country_id`, selectedCountry.id);
+          await fetchStates(selectedCountry.id, 0);
+        }
+
+        // ✅ State
+        const stateName = (addr.stcd || "").toLowerCase().trim();
+        const matchedState = addressOptions[0]?.states?.find(
+          (s) => s.state_name.toLowerCase().trim() === stateName
+        );
+
+        if (matchedState) {
+          setValue(`addresses.0.state_id`, matchedState.id);
+          await fetchCities(matchedState.id, 0, true);
+        } else {
+          console.warn(`State not found for GST state: ${addr.stcd}`);
+        }
+
+        // ✅ City — after fetchCities finishes populating
+        setTimeout(() => {
+          const cityName = (addr.loc || addr.dst || "").toLowerCase().trim();
+          const matchedCity = addressOptions[0]?.cities?.find(
+            (c) => c.city_name.toLowerCase().trim() === cityName
+          );
+          if (matchedCity) {
+            setValue(`addresses.0.city_id`, matchedCity.id);
+          } else {
+            console.warn(
+              `City not found for GST city: ${addr.loc || addr.dst}`
+            );
+          }
+        }, 500);
 
         toast.success("GSTIN fetched successfully!");
       } else {
-        // ❌ Show message from API (like invalid API key)
-        toast.error(response?.message || "Failed to fetch GST details");
+        toast.error("Invalid GSTIN or data not found");
       }
     } catch (error) {
       console.error("Error fetching GSTIN:", error);
-      toast.error("Error fetching GSTIN");
+      toast.error("Error fetching GSTIN details");
     }
   };
 
@@ -472,6 +557,9 @@ const CustomerForm = ({
                     {...register("gst_number", {
                       required: "GST number is required",
                     })}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.toUpperCase();
+                    }}
                     className={`px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors w-full ${
                       errors.gst_number
                         ? "border-red-500 bg-red-50"
@@ -664,13 +752,17 @@ const CustomerForm = ({
                 type="text"
                 {...register("pan_number", {
                   required: "Pan number is required",
+                  onChange: (e) => {
+                    // Convert to uppercase automatically
+                    e.target.value = e.target.value.toUpperCase();
+                  },
                 })}
                 className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
                   errors.pan_number
                     ? "border-red-500 bg-red-50"
                     : "border-gray-300 hover:border-gray-400"
                 }`}
-                placeholder="Enter pan number"
+                placeholder="Enter PAN number"
               />
               {errors.pan_number && (
                 <p className="mt-2 text-sm text-red-600 flex items-center">
@@ -679,6 +771,7 @@ const CustomerForm = ({
                 </p>
               )}
             </div>
+
             <div>
               <label className="block text-xs font-medium text-manufacturing-700 mb-1">
                 Credit Limit
@@ -898,28 +991,7 @@ const CustomerForm = ({
                 )}
               </div>
 
-              <div>
-                <label className="text-xs font-medium">
-                  Pincode <span className="text-red-500">*</span>
-                </label>
-                <input
-                  {...register(`addresses.0.pincode`, {
-                    required: "Pincode is required",
-                  })}
-                  placeholder="Enter 6 digit Pincode"
-                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                    errors.addresses?.[0]?.pincode
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                />
-                {errors.addresses?.[0]?.pincode && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.addresses?.[0]?.pincode.message}
-                  </p>
-                )}
-              </div>
+              <div></div>
 
               <div className="md:col-span-2">
                 <label className="text-xs font-medium">
@@ -1044,6 +1116,28 @@ const CustomerForm = ({
                   <p className="mt-2 text-sm text-red-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
                     {errors.addresses?.[0]?.city_id.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium">
+                  Pincode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register(`addresses.0.pincode`, {
+                    required: "Pincode is required",
+                  })}
+                  placeholder="Enter 6 digit Pincode"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                    errors.addresses?.[0]?.pincode
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                />
+                {errors.addresses?.[0]?.pincode && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.addresses?.[0]?.pincode.message}
                   </p>
                 )}
               </div>
@@ -1467,96 +1561,111 @@ const CustomerForm = ({
                             <FileText className="h-5 w-5 text-corrugated-600 mr-3 flex-shrink-0" />
                             <div>
                               {editingDocumentId === document.id ? (
-                                <input
-                                  type="text"
-                                  value={editingDocumentName}
-                                  autoFocus
-                                  onChange={(e) =>
-                                    setEditingDocumentName(e.target.value)
-                                  }
-                                  onKeyDown={async (e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault(); // ✅ Prevent accidental form submit
-                                      if (!editingDocumentName?.trim()) {
-                                        toast.error(
-                                          "Document name cannot be empty!"
-                                        );
-                                        return;
-                                      }
-
-                                      try {
-                                        console.log(
-                                          "Editing Document:",
-                                          document
-                                        );
-
-                                        // ✅ Only call API if document has an ID (i.e., it's saved on the server)
-                                        if (document?.document_id) {
-                                          const response =
-                                            await CommonService.updateDocuments(
-                                              document.document_id,
-                                              {
-                                                document_name:
-                                                  editingDocumentName.trim(),
-                                              }
-                                            );
-
-                                          if (response?.success) {
-                                            toast.success(
-                                              "Document name updated successfully!"
-                                            );
-                                          } else {
-                                            toast.error(
-                                              response?.message ||
-                                                "Failed to update document name."
-                                            );
-                                            return;
-                                          }
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={editingDocumentName}
+                                    autoFocus
+                                    onChange={(e) =>
+                                      setEditingDocumentName(e.target.value)
+                                    }
+                                    onKeyDown={async (e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault(); // ✅ Prevent accidental form submit
+                                        if (!editingDocumentName?.trim()) {
+                                          toast.error(
+                                            "Document name cannot be empty!"
+                                          );
+                                          return;
                                         }
 
-                                        // ✅ Update local state immediately for UI feedback
-                                        setUploadedDocuments((prev) =>
-                                          prev.map((doc) =>
-                                            doc.id === document.id
-                                              ? {
-                                                  ...doc,
-                                                  name: editingDocumentName.trim(),
-                                                }
-                                              : doc
-                                          )
-                                        );
+                                        try {
+                                          console.log(
+                                            "Editing Document:",
+                                            document
+                                          );
 
-                                        // ✅ Sync with form if you're using react-hook-form
-                                        if (setValue) {
-                                          setValue(
-                                            `documents.${document.id}.name`,
-                                            editingDocumentName.trim()
+                                          // ✅ Only call API if document has an ID
+                                          if (document?.document_id) {
+                                            const response =
+                                              await CommonService.updateDocuments(
+                                                document.document_id,
+                                                {
+                                                  document_name:
+                                                    editingDocumentName.trim(),
+                                                }
+                                              );
+
+                                            if (response?.success) {
+                                              toast.success(
+                                                "Document name updated successfully!"
+                                              );
+                                            } else {
+                                              toast.error(
+                                                response?.message ||
+                                                  "Failed to update document name."
+                                              );
+                                              return;
+                                            }
+                                          }
+
+                                          // ✅ Update local state
+                                          setUploadedDocuments((prev) =>
+                                            prev.map((doc) =>
+                                              doc.id === document.id
+                                                ? {
+                                                    ...doc,
+                                                    name: editingDocumentName.trim(),
+                                                  }
+                                                : doc
+                                            )
+                                          );
+
+                                          // ✅ Sync with form if using react-hook-form
+                                          if (setValue) {
+                                            setValue(
+                                              `documents.${document.id}.name`,
+                                              editingDocumentName.trim()
+                                            );
+                                          }
+
+                                          // ✅ Exit edit mode
+                                          setEditingDocumentId(null);
+                                          setEditingDocumentName("");
+                                        } catch (err) {
+                                          console.error(
+                                            "Error updating document:",
+                                            err
+                                          );
+                                          toast.error(
+                                            "An unexpected error occurred while updating the document."
                                           );
                                         }
+                                      }
 
-                                        // ✅ Exit edit mode
+                                      // ✅ Escape key cancels edit
+                                      if (e.key === "Escape") {
+                                        e.preventDefault();
                                         setEditingDocumentId(null);
                                         setEditingDocumentName("");
-                                      } catch (err) {
-                                        console.error(
-                                          "Error updating document:",
-                                          err
-                                        );
-                                        toast.error(
-                                          "An unexpected error occurred while updating the document."
-                                        );
                                       }
-                                    }
+                                    }}
+                                    className="text-sm font-medium border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-corrugated-600 rounded flex-1"
+                                  />
 
-                                    // ✅ Escape key to cancel editing
-                                    if (e.key === "Escape") {
-                                      e.preventDefault();
+                                  {/* ❌ Cancel Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
                                       setEditingDocumentId(null);
                                       setEditingDocumentName("");
-                                    }
-                                  }}
-                                  className="text-sm font-medium border-b border-gray-300 focus:outline-none focus:ring-1 focus:ring-corrugated-600 rounded"
-                                />
+                                    }}
+                                    className="text-gray-400 hover:text-red-500 transition"
+                                    title="Cancel edit"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
                               ) : (
                                 <>
                                   <div className="text-sm font-medium text-gray-900">
@@ -1584,16 +1693,16 @@ const CustomerForm = ({
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            {isPreviewable(document) && (
-                              <button
-                                type="button"
-                                onClick={() => handlePreview(document)}
-                                className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
-                                title="Preview document"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                            )}
+                            {/* {isPreviewable(document) && ( */}
+                            <button
+                              type="button"
+                              onClick={() => handlePreview(document)}
+                              className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
+                              title="Preview document"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {/* )} */}
                             <button
                               type="button"
                               onClick={() => {

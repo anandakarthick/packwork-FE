@@ -223,7 +223,7 @@ const AddSupplier = () => {
         notes: data.notes || "",
         website: data.website || "",
         gst_number: data.gst_number || "",
-        is_active: data.is_active || 1,
+        is_active: data?.is_active,
       };
 
       let customerId = data.id || customerIdRef.current || id || null;
