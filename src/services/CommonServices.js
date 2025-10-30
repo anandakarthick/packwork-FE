@@ -1,5 +1,5 @@
 import api from "./api";
-const GST_KEY = import.meta.env.GST_API_KEY; 
+const GST_KEY = "5f0531d73555435f197268154bfcdeff";
 export const CommonService = {
   uploadDocuments: async (data) => {
     try {
@@ -123,12 +123,28 @@ export const CommonService = {
     }
   },
   checkGSTIN: async (gstin) => {
+    console.log("GSTKEY", GST_KEY);
+    console.log("GSTIN", gstin);
     try {
-      const response = await api.get(`http://sheet.gstincheck.co.in/check/${GST_KEY}/${gstin}`);
-      return response.data;
+      const response = await api.get(
+        `https://sheet.gstincheck.co.in/check/${GST_KEY}/${gstin}`
+      );
+      console.log("API Response:", response?.data);
+
+      if (response?.data?.flag && response?.data?.data) {
+        return response.data.data;
+      } else {
+        return {
+          success: false,
+          message: response?.data?.message || "Invalid response",
+        };
+      }
     } catch (error) {
       console.error("Error checking GSTIN:", error);
-      return { success: false, message: error.response?.data?.message };
+      return {
+        success: false,
+        message: error.response?.data?.message || "Error fetching GSTIN",
+      };
     }
   },
 };

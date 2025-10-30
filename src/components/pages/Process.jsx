@@ -198,7 +198,8 @@ const Process = () => {
         onAdd={handleAddProcess}
         addButtonText="Add New Process"
         onImport={handleImport}
-        showImport={true}
+        showImport={true}        
+        showFilter={false}
         statusFilter={statusFilter}
         handleStatusFilter={handleStatusFilter}
         onClearFilters={handleClearFilters}
@@ -210,7 +211,6 @@ const Process = () => {
         loading={loading}
         emptyMessage="No process found"
         showActions={true}
-        showFilter={false}
         onView={(row) => navigate(`/view-process/${row.id}`)}
         onEdit={(row) => navigate(`/edit-process/${row.id}`)}
         onDelete={(row) => handleDelete(row)}

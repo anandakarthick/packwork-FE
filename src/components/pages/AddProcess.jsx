@@ -290,7 +290,6 @@ const AddProcess = () => {
 
   const [newOptions, setNewOptions] = useState({});
 
-  // Add option to dropdown_options array
   const handleAddOption = (index) => {
     const optionValue = newOptions[index]?.trim();
     if (!optionValue) return;
