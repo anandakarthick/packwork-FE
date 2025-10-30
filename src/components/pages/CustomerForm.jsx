@@ -259,24 +259,38 @@ const CustomerForm = ({
 
   const handlePreview = (document) => {
     console.log(document);
-    let fileUrl = "";
-    if (document.file instanceof File) {
-      fileUrl = URL.createObjectURL(document.file);
-    } else if (document.document_id) {
-      fileUrl = document.url;
+    if (document?.url) {
+      try {
+        if (!document?.url) {
+          toast.error("Document URL not found");
+          return;
+        }
+
+        window.open(document.url, "_blank");
+      } catch (error) {
+        console.error("View error:", error);
+        toast.error("Failed to view document");
+      }
     } else {
-      toast.error("Preview not available for this file");
-      return;
+      let fileUrl = "";
+      if (document.file instanceof File) {
+        fileUrl = URL.createObjectURL(document.file);
+      } else if (document.document_id) {
+        fileUrl = document.url;
+      } else {
+        toast.error("Preview not available for this file");
+        return;
+      }
+
+      setPreviewFile({
+        url: fileUrl,
+        type: document.type,
+        name: document.name || document.originalName || "Document",
+        isFromServer: !!document.url,
+      });
+
+      setShowPreview(true);
     }
-
-    setPreviewFile({
-      url: fileUrl,
-      type: document.type,
-      name: document.name || document.originalName || "Document",
-      isFromServer: !!document.url,
-    });
-
-    setShowPreview(true);
   };
 
   const closePreview = () => {
@@ -1679,16 +1693,16 @@ const CustomerForm = ({
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            {isPreviewable(document) && (
-                              <button
-                                type="button"
-                                onClick={() => handlePreview(document)}
-                                className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
-                                title="Preview document"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                            )}
+                            {/* {isPreviewable(document) && ( */}
+                            <button
+                              type="button"
+                              onClick={() => handlePreview(document)}
+                              className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
+                              title="Preview document"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {/* )} */}
                             <button
                               type="button"
                               onClick={() => {

@@ -159,24 +159,38 @@ const SupplierForm = ({
 
   const handlePreview = (document) => {
     console.log(document);
-    let fileUrl = "";
-    if (document.file instanceof File) {
-      fileUrl = URL.createObjectURL(document.file);
-    } else if (document.document_id) {
-      fileUrl = document.url;
+    if (document?.url) {
+      try {
+        if (!document?.url) {
+          toast.error("Document URL not found");
+          return;
+        }
+
+        window.open(document.url, "_blank");
+      } catch (error) {
+        console.error("View error:", error);
+        toast.error("Failed to view document");
+      }
     } else {
-      toast.error("Preview not available for this file");
-      return;
+      let fileUrl = "";
+      if (document.file instanceof File) {
+        fileUrl = URL.createObjectURL(document.file);
+      } else if (document.document_id) {
+        fileUrl = document.url;
+      } else {
+        toast.error("Preview not available for this file");
+        return;
+      }
+
+      setPreviewFile({
+        url: fileUrl,
+        type: document.type,
+        name: document.name || document.originalName || "Document",
+        isFromServer: !!document.url,
+      });
+
+      setShowPreview(true);
     }
-
-    setPreviewFile({
-      url: fileUrl,
-      type: document.type,
-      name: document.name || document.originalName || "Document",
-      isFromServer: !!document.url,
-    });
-
-    setShowPreview(true);
   };
 
   const closePreview = () => {
@@ -197,29 +211,79 @@ const SupplierForm = ({
   }, [previewFile]);
 
   // Add this to check if file is previewable
-  const isPreviewable = (document) => {
-    console.log(document);
-    const previewableTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "application/pdf",
-      "application/png",
-      "jpg",
-      "png",
-      "jpeg",
-      "pdf",
-      "JPG",
-      "PNG",
-      "JPEG",
-      "PDF",
-      "doc",
-      "docx",
-      "xls",
-      "xlsx",
-    ];
-    return previewableTypes.includes(document.type);
-  };
+  // const isPreviewable = (document) => {
+  //   console.log("docuemnt id", document?.document_id);
+  //   if (document?.document_id) {
+  //     return true;
+  //   }
+  //   const previewableTypes = [
+  //     // 🖼️ Images
+  //     "image/jpeg",
+  //     "image/jpg",
+  //     "image/png",
+  //     "image/gif",
+  //     "image/webp",
+  //     "image/bmp",
+  //     "image/tiff",
+  //     "image/svg+xml",
+  //     "jpeg",
+  //     "jpg",
+  //     "png",
+  //     "gif",
+  //     "webp",
+  //     "bmp",
+  //     "tiff",
+  //     "svg",
+
+  //     // 📄 PDF
+  //     "application/pdf",
+  //     "application/png",
+  //     "pdf",
+
+  //     // 📝 Text files
+  //     "text/plain",
+  //     "text/csv",
+  //     "text/html",
+  //     "text/css",
+  //     "text/javascript",
+  //     "csv",
+  //     "txt",
+  //     "html",
+  //     "css",
+  //     "js",
+
+  //     // 📚 Microsoft Office
+  //     "application/msword", // .doc
+  //     "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  //     "application/vnd.ms-excel", // .xls
+  //     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  //     "application/vnd.ms-powerpoint", // .ppt
+  //     "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+  //     "doc",
+  //     "docx",
+  //     "xls",
+  //     "xlsx",
+  //     "ppt",
+  //     "pptx",
+
+  //     // 📘 OpenDocument formats
+  //     "application/vnd.oasis.opendocument.text", // .odt
+  //     "application/vnd.oasis.opendocument.spreadsheet", // .ods
+  //     "application/vnd.oasis.opendocument.presentation", // .odp
+  //     "odt",
+  //     "ods",
+  //     "odp",
+  //   ];
+
+  //   const fileType = document?.type || document?.mimeType || "";
+  //   const fileExtension = document?.name?.split(".").pop()?.toLowerCase() || "";
+
+  //   return (
+  //     previewableTypes.includes(fileType.toLowerCase()) ||
+  //     previewableTypes.includes(fileExtension)
+  //   );
+  // };
+
   const getPANFromGSTIN = (gstin) => {
     if (!gstin || gstin.length < 12) return "";
     return gstin.substring(2, 12); // extract 3rd to 12th character
@@ -1236,7 +1300,7 @@ const SupplierForm = ({
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
-                            {isPreviewable(document) && (
+                            {/* {isPreviewable(document) && ( */}
                               <button
                                 type="button"
                                 onClick={() => handlePreview(document)}
@@ -1245,7 +1309,7 @@ const SupplierForm = ({
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
-                            )}
+                            {/* )} */}
                             <button
                               type="button"
                               onClick={() => {
