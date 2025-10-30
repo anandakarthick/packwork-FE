@@ -23,19 +23,31 @@ const Clients = () => {
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20,
-    categoryFilter: "client",
-    search: "", // Added search to filters
+    search: "",
+    is_active: "", // ✅ new filter
   });
 
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const handleStatusFilter = (e) => {
+    const value = e.target.value;
+
+    setStatusFilter(value);
+    setFilters((prev) => ({
+      ...prev,
+      page: 1,
+      is_active: value === "active" ? 1 : value === "inactive" ? 0 : "", // ✅ '' means no filter
+    }));
+  };
   // Fetch data when filters change (including search)
   useEffect(() => {
     fetchClientData();
-  }, [filters.page, filters.limit, filters.search]);
+  }, [filters.page, filters.limit, filters.search, filters.is_active]);
 
   // Debounce search to avoid too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
-      setFilters(prev => ({
+      setFilters((prev) => ({
         ...prev,
         search: searchTerm,
         page: 1, // Reset to first page on new search
@@ -44,11 +56,34 @@ const Clients = () => {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("");
+    setFilters((prev) => ({
+      ...prev,
+      search: "",
+      is_active: "",
+      page: 1,
+    }));
+  };
 
   const fetchClientData = async () => {
     setLoading(true);
     try {
-      const response = await ClientService.getAllClients(filters);
+      const params = {
+        page: filters.page,
+        limit: filters.limit,
+        search: filters.search,
+      };
+
+      if (
+        filters.is_active !== "" &&
+        filters.is_active !== null &&
+        filters.is_active !== undefined
+      ) {
+        params.is_active = filters.is_active;
+      }
+      const response = await ClientService.getAllClients(params);
       console.log(
         "Clients response:",
         response?.data.filter((c) => c.customer_type === "client")
@@ -97,10 +132,14 @@ const Clients = () => {
       const docRes = await ClientService.getCustomerAllDocuments(row.id);
       if (docRes.success && docRes.data.length) {
         await Promise.all(
-          docRes.data.map((doc) => ClientService.deleteCustomerDocumentsLinks(doc.id))
+          docRes.data.map((doc) =>
+            ClientService.deleteCustomerDocumentsLinks(doc.id)
+          )
         );
         await Promise.all(
-          docRes.data.map((doc) => CommonService.deleteDocuemnts(doc.document_id))
+          docRes.data.map((doc) =>
+            CommonService.deleteDocuemnts(doc.document_id)
+          )
         );
       }
 
@@ -131,6 +170,7 @@ const Clients = () => {
     { label: "Name", key: "customer_name" },
     { label: "Email", key: "email_id" },
     { label: "Phone", key: "mobile_number" },
+    { label: "Status", key: "is_active" },
   ];
 
   return (
@@ -150,6 +190,9 @@ const Clients = () => {
         addButtonText="Add New Client"
         onImport={handleImport}
         showImport={true}
+        statusFilter={statusFilter}
+        handleStatusFilter={handleStatusFilter}
+        onClearFilters={handleClearFilters}
       />
 
       <CommonTable
