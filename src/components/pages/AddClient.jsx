@@ -85,19 +85,20 @@ const AddClient = () => {
     },
   });
 
-  useEffect(() => {
-    const fetchConfigData = async () => {
-      try {
-        const response = await CommonService.getGroupedConfigs();
-        console.log("Config data:", response);
-        if (response.success) {
-          setPaymentTerms(response.data.payment_terms);
-          setBusinessTypes(response.data.business_type);
-        }
-      } catch (error) {
-        console.error("Error fetching payment terms:", error);
+  const fetchConfigData = async () => {
+    try {
+      const response = await CommonService.getGroupedConfigs();
+      console.log("Config data:", response);
+      if (response.success) {
+        setPaymentTerms(response.data.payment_terms);
+        setBusinessTypes(response.data.business_type);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching payment terms:", error);
+    }
+  };
+
+  useEffect(() => {
     const fetchCommonData = async () => {
       try {
         const response = await CommonService.getAllCountries();
@@ -344,8 +345,14 @@ const AddClient = () => {
           console.log("✅ Address updated:", addrRes);
 
           if (!addrRes?.success) {
-            toast.error(addrRes?.data?.error || "Location name / code already exists for this Client");
-            throw new Error(addrRes?.data?.message || "Location name / code already exists for this Client");
+            toast.error(
+              addrRes?.data?.error ||
+                "Location name / code already exists for this Client"
+            );
+            throw new Error(
+              addrRes?.data?.message ||
+                "Location name / code already exists for this Client"
+            );
           }
         } else {
           // 🟢 Create new address
@@ -364,12 +371,20 @@ const AddClient = () => {
               addrRes?.error?.includes("location name") ||
               addrRes?.error?.includes("already exists")
             ) {
-              toast.error(addrRes?.data?.error || "Location name / code already exists for this Client");
+              toast.error(
+                addrRes?.data?.error ||
+                  "Location name / code already exists for this Client"
+              );
             } else {
-              toast.error(addrRes?.data?.error || "Location name / code already exists for this Client");
+              toast.error(
+                addrRes?.data?.error ||
+                  "Location name / code already exists for this Client"
+              );
             }
 
-            throw new Error(addrRes?.data?.message || "Failed to create address");
+            throw new Error(
+              addrRes?.data?.message || "Failed to create address"
+            );
           }
         }
       }
@@ -502,9 +517,16 @@ const AddClient = () => {
 
           setUploadedDocuments(formattedDocuments);
 
+          // ✅ Check if GST number exists and is not empty
+          const hasGstValue = Boolean(
+            response?.data?.gst_number &&
+              response?.data?.gst_number.trim() !== ""
+          );
+
           // ✅ Reset form with fetched values
           reset({
             ...response?.data,
+            has_gst: hasGstValue,
             addresses:
               clientAddress?.data?.length > 0
                 ? clientAddress?.data
@@ -541,6 +563,12 @@ const AddClient = () => {
                     },
                   ],
           });
+          setTimeout(() => {
+            setValue("has_gst", hasGstValue, {
+              shouldDirty: true,
+              shouldTouch: true,
+            });
+          }, 0);
         } catch (error) {
           console.error("Error fetching client:", error);
         }
@@ -595,6 +623,7 @@ const AddClient = () => {
         addressOptions={addressOptions}
         setAddressOptions={setAddressOptions}
         id={id}
+        reset={fetchConfigData}
       />
     </FormLayout>
   );

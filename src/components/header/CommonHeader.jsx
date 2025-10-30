@@ -1,4 +1,5 @@
-import { Search, Plus, Upload } from "lucide-react";
+import { Search, Plus, Upload, Download, Filter } from "lucide-react";
+import { useState } from "react";
 
 const CommonHeader = ({
   title,
@@ -7,11 +8,23 @@ const CommonHeader = ({
   onSearch,
   searchPlaceholder = "Search...",
   onAdd,
+
+  onImport = () => {
+    console.log("import");
+  },
+  onExport = () => {
+    console.log("export");
+  },
   addButtonText = "Add",
   showAddButton = true,
 }) => {
+  const [statusFilter, setStatusFilter] = useState("");
+  const handleStatusFilter = (e) => {
+    setStatusFilter(e.target.value);
+  };
   return (
     <div className="mb-4">
+      {/* Header title + add button */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-manufacturing-800 flex items-center">
@@ -37,20 +50,41 @@ const CommonHeader = ({
         )}
       </div>
 
+      {/* Search bar and buttons */}
       <div className="card-corrugated p-4 mt-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <div className="relative flex-1 max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchTerm}
-              onChange={onSearch}
-              className="w-full pl-10 pr-4 py-2 text-sm border border-manufacturing-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 focus:border-transparent transition-all"
-            />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* 🔍 Search + Filter on the left */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={onSearch}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-manufacturing-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            {/* Filter Dropdown */}
+            <div className="relative sm:w-44">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
+              <select
+                value={statusFilter}
+                onChange={handleStatusFilter}
+                className="w-full pl-10 pr-8 py-2 text-sm border border-manufacturing-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 appearance-none bg-white"
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex gap-2">
+          {/* ⚙️ Action Buttons on the right */}
+          <div className="flex gap-2 justify-end">
             {showAddButton && (
               <button
                 onClick={onAdd}
@@ -60,6 +94,22 @@ const CommonHeader = ({
                 Add
               </button>
             )}
+
+            <button
+              onClick={onImport}
+              className="px-4 py-2.5 text-manufacturing-600 border border-manufacturing-300 rounded-lg hover:bg-manufacturing-50 transition-colors font-medium flex items-center"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </button>
+
+            <button
+              onClick={onExport}
+              className="px-4 py-2.5 text-manufacturing-600 border border-manufacturing-300 rounded-lg hover:bg-manufacturing-50 transition-colors font-medium flex items-center"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </button>
           </div>
         </div>
       </div>

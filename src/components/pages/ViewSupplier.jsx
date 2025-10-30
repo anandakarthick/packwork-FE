@@ -196,14 +196,14 @@ const ViewSupplier = () => {
                 >
                   <CreditCard className="h-6 w-6 text-green-600 mx-auto mb-2" />
                   <div className="text-lg font-bold text-green-700">
-                    {supplier.credit_limit || 0}
+                    {supplier?.advance_amount || 0}
                   </div>
                   <div className="text-sm text-green-600">Advance Amount</div>
                 </div>
                 <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-4 text-center">
                   <Activity className="h-6 w-6 text-warning-600 mx-auto mb-2" />
                   <div className="text-lg font-bold text-warning-700">
-                    {supplier.credit_limit || 0}
+                    {supplier?.outstanding_receivables || 0}
                   </div>
                   <div className="text-sm text-warning-600">
                     Outstanding Receivables
@@ -269,7 +269,7 @@ const ViewSupplier = () => {
                       Website
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.website ?? "Not provided"}
+                      {supplier?.website == "" ? "Not provided" : supplier?.website ?? "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -311,7 +311,17 @@ const ViewSupplier = () => {
                       GST No.
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.gst_number ?? "Not provided"}
+                      {supplier?.gst_number == "" ? "Not provided" : supplier?.gst_number ?? "Not provided"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div>
+                    <p className="text-xs text-manufacturing-500 capitalize">
+                      Business type
+                    </p>
+                    <p className="font-medium text-manufacturing-800 text-sm">
+                      {businessTypes.find((pt) => pt.id === supplier?.business_type_id)?.display_label ??  "Not provided"}
                     </p>
                   </div>
                 </div>

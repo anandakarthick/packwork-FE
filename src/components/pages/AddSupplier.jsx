@@ -72,20 +72,20 @@ const AddSupplier = () => {
     control,
     name: "addresses",
   });
+  const fetchConfigData = async () => {
+    try {
+      const response = await CommonService.getGroupedConfigs();
+      console.log("Config data:", response);
+      if (response.success) {
+        setPaymentTerms(response.data.payment_terms);
+        setBusinessTypes(response.data.business_type);
+      }
+    } catch (error) {
+      console.error("Error fetching payment terms:", error);
+    }
+  };
 
   useEffect(() => {
-    const fetchConfigData = async () => {
-      try {
-        const response = await CommonService.getGroupedConfigs();
-        console.log("Config data:", response);
-        if (response.success) {
-          setPaymentTerms(response.data.payment_terms);
-          setBusinessTypes(response.data.business_type);
-        }
-      } catch (error) {
-        console.error("Error fetching payment terms:", error);
-      }
-    };
     const fetchCommonData = async () => {
       try {
         const response = await CommonService.getAllCountries();
@@ -445,10 +445,15 @@ const AddSupplier = () => {
             setCities(fetchedCities);
           }
         }
+        const hasGstValue = Boolean(
+          clientRes?.data?.gst_number &&
+            clientRes?.data?.gst_number.trim() !== ""
+        );
 
         // ✅ Now safely reset form with loaded dropdowns
         reset({
           ...clientRes?.data,
+          has_gst: hasGstValue,
           addresses: [
             {
               id: address.id || "",
@@ -472,6 +477,12 @@ const AddSupplier = () => {
         setTimeout(() => {
           if (cityId) setValue("addresses.0.city_id", cityId);
         }, 150);
+        setTimeout(() => {
+          setValue("has_gst", hasGstValue, {
+            shouldDirty: true,
+            shouldTouch: true,
+          });
+        }, 0);
 
         const formattedDocuments = (documentsRes?.data || []).map((doc) => ({
           id: doc.id,
@@ -546,6 +557,7 @@ const AddSupplier = () => {
         setCities={setCities}
         getValues={getValues}
         id={id}
+        reset={fetchConfigData}
       />
     </FormLayout>
   );

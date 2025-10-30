@@ -10,8 +10,8 @@ const CustomFieldManager = ({
   onFieldAdded,
   fieldType,
   title = "Manage Custom Fields",
-  description = "Add and manage your custom field options",
   onRefresh,
+  reset,
 }) => {
   const [customFields, setCustomFields] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -149,8 +149,8 @@ const CustomFieldManager = ({
     const errors = {};
 
     // For fields that don't show separate value input, use displayLabel for both
-    const valueToCheck = config.showSeparateValue 
-      ? formData.value.trim() 
+    const valueToCheck = config.showSeparateValue
+      ? formData.value.trim()
       : formData.displayLabel.trim();
 
     if (!valueToCheck) {
@@ -191,10 +191,10 @@ const CustomFieldManager = ({
     setFormLoading(true);
     try {
       // For fields without separate value input, use displayLabel for both
-      const configValue = config.showSeparateValue 
-        ? formData.value.trim() 
+      const configValue = config.showSeparateValue
+        ? formData.value.trim()
         : formData.displayLabel.trim();
-      
+
       const displayLabel = config.showSeparateValue
         ? formData.displayLabel.trim()
         : formData.displayLabel.trim();
@@ -233,14 +233,17 @@ const CustomFieldManager = ({
             isCustom: true,
           });
         }
+        if (editingField && onRefresh) {
+          onRefresh();
+        }
 
         // Reset form
         setFormData({ value: "", displayLabel: "" });
         setFormErrors({});
         setEditingField(null);
 
-        if (onRefresh) {
-          onRefresh();
+        if (reset) {
+          reset();
         }
       }
     } catch (error) {
@@ -260,7 +263,7 @@ const CustomFieldManager = ({
   const handleEdit = (field) => {
     console.log(`field that are to be edited`, field);
     setEditingField(field);
-    
+
     // For fields without separate value, set displayLabel only
     if (config.showSeparateValue) {
       setFormData({
@@ -383,7 +386,9 @@ const CustomFieldManager = ({
                         : "border-gray-300 hover:border-gray-400"
                     }`}
                     style={{
-                      ...(formErrors.value ? {} : { "--tw-ring-color": "#b36735" }),
+                      ...(formErrors.value
+                        ? {}
+                        : { "--tw-ring-color": "#b36735" }),
                     }}
                     placeholder={config.placeholder}
                     disabled={formLoading}
@@ -438,10 +443,10 @@ const CustomFieldManager = ({
                 {/* Single Input - For business_type and supplier_type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {fieldType === "business_type" 
-                      ? "Business Type" 
-                      : fieldType === "supplier_type" 
-                      ? "Supplier Type" 
+                    {fieldType === "business_type"
+                      ? "Business Type"
+                      : fieldType === "supplier_type"
+                      ? "Supplier Type"
                       : "Name"}
                   </label>
                   <input
@@ -555,11 +560,12 @@ const CustomFieldManager = ({
                         {field.display_label}
                       </span>
                       {/* Only show config_value for fields with separate value */}
-                      {config.showSeparateValue && field.config_value !== field.display_label && (
-                        <span className="ml-2 text-sm text-gray-500">
-                          ({field.config_value})
-                        </span>
-                      )}
+                      {config.showSeparateValue &&
+                        field.config_value !== field.display_label && (
+                          <span className="ml-2 text-sm text-gray-500">
+                            ({field.config_value})
+                          </span>
+                        )}
                     </div>
                     {editingField?.id === field.id && (
                       <span

@@ -21,13 +21,29 @@ const Process = () => {
   });
 
   const [filters, setFilters] = useState({
-    page: 1,
-    limit: 20,
-  });
-
-  useEffect(() => {
-    fetchProcessData();
-  }, [filters.page, filters.limit]);
+      page: 1,
+      limit: 20,
+      categoryFilter: "client",
+      search: "", // Added search to filters
+    });
+  
+    // Fetch data when filters change (including search)
+    useEffect(() => {
+      fetchProcessData();
+    }, [filters.page, filters.limit, filters.search]);
+  
+    // Debounce search to avoid too many API calls
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setFilters(prev => ({
+          ...prev,
+          search: searchTerm,
+          page: 1, // Reset to first page on new search
+        }));
+      }, 500); // 500ms debounce
+  
+      return () => clearTimeout(timer);
+    }, [searchTerm]);
 
   const fetchProcessData = async () => {
     setLoading(true);
@@ -72,8 +88,8 @@ const Process = () => {
   const handleImport = () => {
     console.log("Import clicked");
   };
-  const handleSearch = (searchTerm) => {
-    setSearchTerm(searchTerm);
+   const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
   };
   const handleDelete = async (row) => {
     const confirmDelete = window.confirm(
