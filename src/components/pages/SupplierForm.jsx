@@ -50,7 +50,7 @@ const SupplierForm = ({
   setCities,
   getValues,
   id,
-  reset
+  reset,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -577,20 +577,30 @@ const SupplierForm = ({
               <input
                 type="text"
                 {...register("website")}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 hover:border-gray-400 transition-colors"
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                  errors.website
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
                 placeholder="Enter Website URL"
               />
+              {errors.website && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.website.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-manufacturing-700 mb-1">
                 Status
               </label>
               <select
-                {...register("status")}
+                {...register("is_active")}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors`}
               >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value={1}>Active</option>
+                <option value={0}>Inactive</option>
               </select>
             </div>
           </div>
@@ -901,7 +911,7 @@ const SupplierForm = ({
                   {...register(`addresses.0.city_id`, {
                     required: "city is required",
                   })}
-                  onChange={()=>{
+                  onChange={() => {
                     clearErrors(`addresses.0.city_id`);
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${

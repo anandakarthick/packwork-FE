@@ -24,7 +24,7 @@ const Suppliers = () => {
      page: 1,
      limit: 20,
      search: "",
-     is_active: "", // ✅ new filter
+     is_active: 1, 
    });
  
    const [statusFilter, setStatusFilter] = useState("");
@@ -186,6 +186,7 @@ const Suppliers = () => {
         addButtonText="Add New Supplier"
         onImport={handleImport}
         showImport={true}
+        showFilter={true}
         statusFilter={statusFilter}
         handleStatusFilter={handleStatusFilter}
         onClearFilters={handleClearFilters}

@@ -125,6 +125,8 @@ const AddSupplier = () => {
     const gstPattern =
       /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
     const numberPattern = /^\d+(\.\d{1,2})?$/;
+    const websitePattern =
+      /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+([\/?#].*)?$/;
 
     const validateField = (condition, field, message) => {
       if (condition) {
@@ -141,6 +143,11 @@ const AddSupplier = () => {
       data.email_id && !emailPattern.test(data.email_id),
       "email_id",
       "Enter a valid email address."
+    );
+    validateField(
+      data.website && !websitePattern.test(data.website),
+      "website",
+      "Enter a valid website URL."
     );
     validateField(
       data.mobile_number && !mobilePattern.test(data.mobile_number),
@@ -216,6 +223,7 @@ const AddSupplier = () => {
         notes: data.notes || "",
         website: data.website || "",
         gst_number: data.gst_number || "",
+        is_active: data.is_active || 1,
       };
 
       let customerId = data.id || customerIdRef.current || id || null;

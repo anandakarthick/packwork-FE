@@ -7,6 +7,7 @@ const CommonHeader = ({
   onSearch,
   searchPlaceholder = "Search...",
   onAdd,
+  showFilter,
   statusFilter,
   handleStatusFilter,
   onClearFilters, // ✅ clear handler
@@ -62,19 +63,20 @@ const CommonHeader = ({
               />
             </div>
 
-            {/* Filter Dropdown */}
-            <div className="relative sm:w-44">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
-              <select
-                value={statusFilter}
-                onChange={handleStatusFilter}
-                className="w-full pl-10 pr-8 py-2 text-sm border border-manufacturing-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 appearance-none bg-white"
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
+            
+            {showFilter && (
+              <div className="relative sm:w-44">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
+                <select
+                  value={statusFilter}
+                  onChange={handleStatusFilter}
+                  className="w-full pl-10 pr-8 py-2 text-sm border border-manufacturing-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 appearance-none bg-white"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            )}
 
             {/* ✅ Clear Button - only shown when active filters */}
             {showClearButton && (

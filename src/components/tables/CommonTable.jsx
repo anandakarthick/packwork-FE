@@ -53,13 +53,13 @@ const CommonTable = ({
                         className={`px-2 py-1 text-xs font-medium rounded-full ${
                           row.is_active == 1
                             ? "bg-success-100 text-success-800"
-                            : "bg-gray-100 text-gray-800"
+                            : "bg-warning-100 text-warning-800"
                         }`}
                       >
                         {row.is_active == 1 ? "Active" : "Inactive"}
                       </span>
                     ) : (
-                      row[col.key] // ✅ Corrected key access
+                      row[col.key] 
                     )}
                   </td>
                 ))}

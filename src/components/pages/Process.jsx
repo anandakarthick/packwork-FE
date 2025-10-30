@@ -24,7 +24,7 @@ const Process = () => {
     page: 1,
     limit: 20,
     search: "",
-    is_active: "", // ✅ new filter
+    is_active: 1, // ✅ new filter
   });
 
   const [statusFilter, setStatusFilter] = useState("");
@@ -179,7 +179,7 @@ const Process = () => {
         </span>
       ),
     },
-    { lable: "Status", key: "is_active" },
+    { label: "Status", key: "is_active" },
   ];
 
   return (
@@ -210,6 +210,7 @@ const Process = () => {
         loading={loading}
         emptyMessage="No process found"
         showActions={true}
+        showFilter={false}
         onView={(row) => navigate(`/view-process/${row.id}`)}
         onEdit={(row) => navigate(`/edit-process/${row.id}`)}
         onDelete={(row) => handleDelete(row)}
