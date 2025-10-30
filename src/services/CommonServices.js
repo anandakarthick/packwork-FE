@@ -1,4 +1,5 @@
 import api from "./api";
+const GST_KEY = import.meta.env.GST_API_KEY; 
 export const CommonService = {
   uploadDocuments: async (data) => {
     try {
@@ -119,6 +120,15 @@ export const CommonService = {
     } catch (error) {
       console.error("Error fetching cities by state:", error);
       return { success: false, data: [] };
+    }
+  },
+  checkGSTIN: async (gstin) => {
+    try {
+      const response = await api.get(`http://sheet.gstincheck.co.in/check/${GST_KEY}/${gstin}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error checking GSTIN:", error);
+      return { success: false, message: error.response?.data?.message };
     }
   },
 };

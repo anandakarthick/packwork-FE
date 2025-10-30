@@ -50,6 +50,7 @@ const SupplierForm = ({
   setCities,
   getValues,
   id,
+  reset
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -205,16 +206,55 @@ const SupplierForm = ({
     ];
     return previewableTypes.includes(document.type);
   };
-  const handleFetchGST = () => {
-    console.log("Fetch GST clicked");
+  const handleFetchGST = async () => {
+    console.log("Fetch GST clicked", watch("gst_number"));
+    try {
+      const response = await CommonService.checkGSTIN(watch("gst_number"));
+      console.log("Response:", response);
+
+      if (response?.flag) {
+        const gstData = response.data;
+
+        // ✅ Set GST Number
+        setValue("gst_number", gstData.gstin);
+
+        // ✅ Set Company Name (use tradeNam if available, else legal name)
+        setValue("company_name", gstData.tradeNam || gstData.lgnm || "");
+
+        // ✅ Optional: Set Address Fields if available
+        // if (gstData.pradr?.addr) {
+        //   const addr = gstData.pradr.addr;
+        //   setValue("address_line1", `${addr.bnm || ""} ${addr.bno || ""} ${addr.st || ""}`.trim());
+        //   setValue("city", addr.loc || addr.dst || "");
+        //   setValue("state", addr.stcd || "");
+        //   setValue("pincode", addr.pncd || "");
+        // }
+
+        toast.success("GSTIN fetched successfully!");
+      } else {
+        // ❌ Show message from API (like invalid API key)
+        toast.error(response?.message || "Failed to fetch GST details");
+      }
+    } catch (error) {
+      console.error("Error fetching GSTIN:", error);
+      toast.error("Error fetching GSTIN");
+    }
   };
 
-  const handleFieldAdded = () => {
-    console.log(`Field added - function not implemented`);
+  const handleFieldAdded = async () => {
+    console.log(`✅ Field added - refreshing config data`);
+    // Call the reset function passed from parent to refetch data
+    if (reset && typeof reset === "function") {
+      await reset();
+    }
   };
 
-  const handleRefresh = () => {
-    console.log(`Field removed - function not implemented`);
+  const handleRefresh = async () => {
+    console.log(`✅ Field updated/deleted - refreshing config data`);
+    // Call the reset function passed from parent to refetch data
+    if (reset && typeof reset === "function") {
+      await reset();
+    }
   };
 
   const fetchStates = async (countryId, index) => {
@@ -314,24 +354,30 @@ const SupplierForm = ({
                   Do you have GST?
                 </label>
                 <div className="flex space-x-4">
+                  {/* ✅ Yes Option */}
                   <label className="flex items-center">
                     <input
                       type="radio"
                       value="true"
-                      {...register("has_gst")}
-                      checked={hasGst === "true" || hasGst === true}
-                      onChange={() => setValue("has_gst", true)}
+                      checked={hasGst === true}
+                      onChange={() => {
+                        setValue("has_gst", true); // ✅ sets boolean true
+                      }}
                       className="mr-1.5 h-3 w-3 text-corrugated-600 focus:ring-corrugated-500 border-gray-300"
                     />
                     <span className="text-xs text-manufacturing-700">Yes</span>
                   </label>
+
+                  {/* ✅ No Option */}
                   <label className="flex items-center">
                     <input
                       type="radio"
                       value="false"
-                      {...register("has_gst")}
-                      checked={hasGst === "false" || hasGst === false}
-                      onChange={() => setValue("has_gst", false)}
+                      checked={hasGst === false}
+                      onChange={() => {
+                        setValue("has_gst", false); // ✅ sets boolean false
+                        setValue("gst_number", ""); // ✅ clears GST number
+                      }}
                       className="mr-1.5 h-3 w-3 text-corrugated-600 focus:ring-corrugated-500 border-gray-300"
                     />
                     <span className="text-xs text-manufacturing-700">No</span>
@@ -430,6 +476,7 @@ const SupplierForm = ({
                     setValue("business_type_id", ""); // Clear the selection
                   } else {
                     setValue("business_type_id", value);
+                    clearErrors(`business_type_id`);
                   }
                 }}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors"
@@ -595,6 +642,7 @@ const SupplierForm = ({
                     setValue("payment_term_id", ""); // Clear the selection
                   } else {
                     setValue("payment_term_id", value);
+                    clearErrors("payment_term_id");
                   }
                 }}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors"
@@ -786,6 +834,7 @@ const SupplierForm = ({
                     const value = e.target.value;
                     setValue(`addresses.0.country_id`, value);
                     fetchStates(value, 0);
+                    clearErrors("addresses.0.country_id");
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
                     errors.addresses?.[0]?.country_id
@@ -821,6 +870,7 @@ const SupplierForm = ({
                     const value = e.target.value;
                     setValue(`addresses.0.state_id`, value);
                     fetchCities(value, 0);
+                    clearErrors("addresses.0.state_id");
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
                     errors.addresses?.[0]?.state_id
@@ -851,6 +901,9 @@ const SupplierForm = ({
                   {...register(`addresses.0.city_id`, {
                     required: "city is required",
                   })}
+                  onChange={()=>{
+                    clearErrors(`addresses.0.city_id`);
+                  }}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
                     errors.addresses?.[0]?.city_id
                       ? "border-red-500 bg-red-50"

@@ -197,7 +197,7 @@ const ViewClient = () => {
                 >
                   <CreditCard className="h-6 w-6 text-green-600 mx-auto mb-2" />
                   <div className="text-lg font-bold text-green-700">
-                    {client.credit_limit || 0}
+                    {client?.outstanding_amount || 0}
                   </div>
                   <div className="text-sm text-green-600">
                     Outstanding Receivables
@@ -216,7 +216,7 @@ const ViewClient = () => {
                 <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-4 text-center">
                   <CreditCard className="h-6 w-6 text-primary-600 mx-auto mb-2" />
                   <div className="text-lg font-bold text-primary-700">
-                    {client.credit_limit || 0}
+                    {client?.credit_balance || 0}
                   </div>
                   <div className="text-sm text-primary-600">Credit Balance</div>
                 </div>
@@ -311,7 +311,9 @@ const ViewClient = () => {
                       Payments Terms
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {paymentTerms.find((pt) => pt.id === client?.payment_term_id)?.display_label ??  "Not provided"}
+                      {paymentTerms.find(
+                        (pt) => pt.id === client?.payment_term_id
+                      )?.display_label ?? "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -321,132 +323,99 @@ const ViewClient = () => {
                       GST No.
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {client?.gst_number ?? "Not provided"}
+                      {client?.gst_number == ""
+                        ? "Not provided"
+                        : client?.gst_number ?? "Not provided"}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="card-corrugated p-4">
-              <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
-                <div className="bg-primary-100 rounded-full p-1 mr-2">
-                  <File className="h-3 w-3 text-primary-600" />
-                </div>
-                Billing Address
-              </h3>
+            <div className="flex flex-col md:flex-row gap-4 items-stretch">
+              {/* 🧾 Billing Address */}
+              <div className="flex-1 card-corrugated p-4 flex flex-col">
+                <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
+                  <div className="bg-primary-100 rounded-full p-1 mr-2">
+                    <File className="h-3 w-3 text-primary-600" />
+                  </div>
+                  Billing Address
+                </h3>
 
-              {client?.addresses
-                ?.filter((addr) => addr.type === "billing")
-                .map((address, index) => (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4 last:mb-0">
-                      {/* Contact person */}
-                      <div className="flex items-start space-x-2 md:col-span-1">
-                        <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.contact_person_name ?? "Not provided"}
-                          </p>
+                <div className="flex-1">
+                  {client?.addresses
+                    ?.filter((addr) => addr.type === "billing")
+                    .map((address, index) => (
+                      <div key={index} className="space-y-4">
+                        {/* Contact Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                          <div className="flex items-start space-x-2 md:col-span-1">
+                            <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
+                            <p className="font-medium text-manufacturing-800 text-sm break-all">
+                              {address?.contact_person_name ?? "Not provided"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-start space-x-2 md:col-span-2">
+                            <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
+                            <p className="font-medium text-manufacturing-800 text-sm break-all">
+                              {address?.contact_email ?? "Not provided"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-start space-x-2 md:col-span-1">
+                            <PhoneCall className="h-3 w-3 text-manufacturing-500 mt-0.5" />
+                            <p className="font-medium text-manufacturing-800 text-sm break-all">
+                              {address?.contact_person_mobile_number ??
+                                "Not provided"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Email (wider) */}
-                      <div className="flex items-start space-x-2 md:col-span-2">
-                        <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.contact_email ?? "Not provided"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Mobile (narrower) */}
-                      <div className="flex items-start space-x-2 md:col-span-1">
-                        <PhoneCall className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.contact_person_mobile_number ??
-                              "Not provided"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      key={index}
-                      className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4 last:mb-0"
-                    >
-                      <div className="flex items-start space-x-2">
-                        <LocationEditIcon className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                        <div>
+                        {/* Address */}
+                        <div className="flex items-start space-x-2">
+                          <LocationEditIcon className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
                             {address?.address ?? "Not provided"}
                           </p>
                         </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 last:mb-0">
-                      <div className="flex items-start space-x-2">
-                        <div>
-                          <p className="text-xs text-manufacturing-500 capitalize">
-                            City
-                          </p>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.city_name ?? "Not provided"}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-start space-x-2">
-                        <div>
-                          <p className="text-xs text-manufacturing-500 capitalize">
-                            State
-                          </p>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.state_name ?? "Not provided"}
-                          </p>
+                        {/* City, State, Country, Pincode */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {[
+                            "city_name",
+                            "state_name",
+                            "country_name",
+                            "pincode",
+                          ].map((field, i) => (
+                            <div key={i}>
+                              <p className="text-xs text-manufacturing-500 capitalize">
+                                {field.replace("_name", "")}
+                              </p>
+                              <p className="font-medium text-manufacturing-800 text-sm break-all">
+                                {address?.[field] ?? "Not provided"}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                       </div>
+                    ))}
+                </div>
+              </div>
 
-                      <div className="flex items-start space-x-2">
-                        <div>
-                          <p className="text-xs text-manufacturing-500 capitalize">
-                            Country
-                          </p>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.country_name ?? "Not provided"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start space-x-2">
-                        <div>
-                          <p className="text-xs text-manufacturing-500 capitalize">
-                            Pincode
-                          </p>
-                          <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.pincode ?? "Not provided"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ))}
+              {/* 🚚 Shipping Address */}
             </div>
-            <div className="w-full card-corrugated p-4 space-y-3">
-              <h3 className="text-base font-medium text-manufacturing-800 border-b border-manufacturing-200 flex items-center justify-between">
+            <div className="flex-1 card-corrugated p-4 flex flex-col">
+              <h3 className="text-base font-medium text-manufacturing-800 border-b border-manufacturing-200 flex items-center justify-between pb-2">
                 <span className="flex items-center">
                   <div className="bg-primary-100 rounded-full p-1 mr-2">
                     <TruckIcon className="h-3 w-3 text-primary-600" />
                   </div>
                   Shipping Address
                 </span>
-
-                {/* Tabs Navigation */}
                 {client?.addresses?.filter((addr) => addr.type !== "billing")
                   .length > 1 && (
                   <div
-                    className="flex items-center gap-2 overflow-x-auto pb-2"
+                    className="flex items-center gap-2 overflow-x-auto "
                     style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                   >
                     {client?.addresses
@@ -468,109 +437,91 @@ const ViewClient = () => {
                 )}
               </h3>
 
-              {/* ---------- ACTIVE SHIPPING ADDRESS ---------- */}
-              {client?.addresses
-                ?.filter((addr) => addr.type !== "billing")
-                .map((address, index) => {
-                  if (index !== activeIndex) return null;
-                  return (
-                    <div key={index} className="space-y-3">
-                      {/* Row 1: Name, Contact Person, Phone */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4 last:mb-0">
-                        {/* Contact person */}
-                        <div className="flex items-start space-x-2 md:col-span-1">
-                          <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
+              <div className="flex-1">
+                {client?.addresses
+                  ?.filter((addr) => addr.type !== "billing")
+                  .map((address, index) => {
+                    if (index !== activeIndex) return null;
+                    return (
+                      <div key={index} className="space-y-4 mt-2">
+                        {/* Location */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                           <div>
+                            <p className="text-xs text-manufacturing-500 capitalize">
+                              Location Code
+                            </p>
+                            <p className="font-medium text-manufacturing-800 text-sm break-all">
+                              {address?.location_code ?? "Not provided"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-manufacturing-500 capitalize">
+                              Location Name
+                            </p>
+                            <p className="font-medium text-manufacturing-800 text-sm break-all">
+                              {address?.location_name ?? "Not provided"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Contact Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                          <div className="flex items-start space-x-2 md:col-span-1">
+                            <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                             <p className="font-medium text-manufacturing-800 text-sm break-all">
                               {address?.contact_person_name ?? "Not provided"}
                             </p>
                           </div>
-                        </div>
 
-                        {/* Email (wider) */}
-                        <div className="flex items-start space-x-2 md:col-span-2">
-                          <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                          <div>
+                          <div className="flex items-start space-x-2 md:col-span-2">
+                            <User className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                             <p className="font-medium text-manufacturing-800 text-sm break-all">
                               {address?.contact_email ?? "Not provided"}
                             </p>
                           </div>
-                        </div>
 
-                        {/* Mobile (narrower) */}
-                        <div className="flex items-start space-x-2 md:col-span-1">
-                          <PhoneCall className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                          <div>
+                          <div className="flex items-start space-x-2 md:col-span-1">
+                            <PhoneCall className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                             <p className="font-medium text-manufacturing-800 text-sm break-all">
                               {address?.contact_person_mobile_number ??
                                 "Not provided"}
                             </p>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Row 2: Address */}
-                      <div className="grid grid-cols-1 gap-4 mb-4 last:mb-0">
-                        <div className="flex items-start space-x-2">
+                        {/* Address */}
+                        <div className="flex items-start space-x-2 mb-4">
                           <LocationEditIcon className="h-3 w-3 text-manufacturing-500 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-manufacturing-800 text-sm break-all">
-                              {address?.address ?? "Not provided"}
-                            </p>
-                          </div>
+                          <p className="font-medium text-manufacturing-800 text-sm break-all">
+                            {address?.address ?? "Not provided"}
+                          </p>
+                        </div>
+
+                        {/* City, State, Country, Pincode */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {[
+                            "city_name",
+                            "state_name",
+                            "country_name",
+                            "pincode",
+                          ].map((field, i) => (
+                            <div key={i}>
+                              <p className="text-xs text-manufacturing-500 capitalize">
+                                {field.replace("_name", "")}
+                              </p>
+                              <p className="font-medium text-manufacturing-800 text-sm break-all">
+                                {address?.[field] ?? "Not provided"}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                       </div>
-
-                      {/* Row 3: City, State, Country, Pincode */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 last:mb-0">
-                        <div className="flex items-start space-x-2">
-                          <div>
-                            <p className="text-xs text-manufacturing-500 capitalize">
-                              City
-                            </p>
-                            <p className="font-medium text-manufacturing-800 text-sm break-all">
-                              {address?.city_name ?? "Not provided"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start space-x-2">
-                          <div>
-                            <p className="text-xs text-manufacturing-500 capitalize">
-                              State
-                            </p>
-                            <p className="font-medium text-manufacturing-800 text-sm break-all">
-                              {address?.state_name ?? "Not provided"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start space-x-2">
-                          <div>
-                            <p className="text-xs text-manufacturing-500 capitalize">
-                              Country
-                            </p>
-                            <p className="font-medium text-manufacturing-800 text-sm break-all">
-                              {address?.country_name ?? "Not provided"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start space-x-2">
-                          <div>
-                            <p className="text-xs text-manufacturing-500 capitalize">
-                              Pincode
-                            </p>
-                            <p className="font-medium text-manufacturing-800 text-sm break-all">
-                              {address?.pincode ?? "Not provided"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+              </div>
             </div>
+
             {getDocuments().length > 0 && (
               <div className="card-corrugated p-4 lg:col-span-2">
                 <h3 className="text-lg font-semibold text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">

@@ -27,6 +27,7 @@ const AddProcess = () => {
     watch,
     setValue,
     getValues,
+    clearErrors,
     reset,
     formState: { errors },
   } = useForm({
@@ -184,7 +185,7 @@ const AddProcess = () => {
 
       for (let i = 0; i < process_custom_fields.length; i++) {
         const field = process_custom_fields[i];
-        const { id: fieldId, process_id, ...cleanField } = field;
+        const { id: fieldId, process_id, db_id, ...cleanField } = field;
 
         cleanField.is_required =
           cleanField.is_required === true ||
@@ -206,9 +207,9 @@ const AddProcess = () => {
 
         let fieldRes;
         try {
-          if (fieldId) {
+          if (db_id) {
             fieldRes = await ProcessService.updateProcessCustomField(
-              fieldId,
+              db_id,
               fieldPayload
             );
           } else {
@@ -232,7 +233,7 @@ const AddProcess = () => {
             throw new Error(errorMsg);
           }
 
-          if (!fieldId && fieldRes?.data?.id) {
+          if (!db_id && fieldRes?.data?.id) {
             process_custom_fields[i].id = fieldRes.data.id;
           }
         } catch (err) {
@@ -256,6 +257,34 @@ const AddProcess = () => {
       toast.error(
         error.message || "Something went wrong while saving process."
       );
+    }
+  };
+
+  const handleDelete = async (index, item) => {
+    console.log(index, item);
+
+    if (window.confirm("Are you sure you want to delete this process?")) {
+      try {
+        if (id) {
+          const deleteRes = await ProcessService.deleteProcessCustomField(
+            item.db_id
+          );
+
+          if (deleteRes?.success) {
+            remove(index);
+            toast.success("Custom Field deleted successfully!");
+          } else {
+            throw new Error(
+              deleteRes?.message || "Failed to delete custom Fields"
+            );
+          }
+        } else {
+          remove(index);
+        }
+      } catch (error) {
+        console.error("Error deleting process:", error);
+        toast.error(error.message || "Failed to delete process");
+      }
     }
   };
 
@@ -290,7 +319,7 @@ const AddProcess = () => {
     if (id) {
       const fetchProcess = async () => {
         try {
-          // ✅ Fetch process details
+          // ✅ Fetch main process details
           const processRes = await ProcessService.getProcessById(id);
           const processData = processRes?.data;
 
@@ -302,10 +331,14 @@ const AddProcess = () => {
             ? customFieldsRes.data
             : [];
 
+          console.log("processCustomFieldsData", processCustomFieldsData);
+
           if (processData) {
+            // ✅ Format custom fields properly
             const formattedFields =
               processCustomFieldsData.length > 0
                 ? processCustomFieldsData.map((field, index) => {
+                    console.log("field", field);
                     // Parse dropdown options
                     const dropdownOptions = Array.isArray(
                       field.dropdown_options
@@ -317,53 +350,44 @@ const AddProcess = () => {
                           .map((opt) => opt.trim())
                       : [];
 
-                    // Normalize field_type to lowercase to match select options
-                    const normalizedFieldType = field.field_type 
-                      ? field.field_type.toLowerCase() 
+                    // Normalize field type
+                    const normalizedFieldType = field.field_type
+                      ? field.field_type.toLowerCase()
                       : "text";
 
-                    // Normalize default_value based on field_type
+                    // Normalize default value
                     let defaultValue = field.default_value ?? "";
 
                     if (normalizedFieldType === "checkbox") {
-                      // Convert checkbox values to string "true" or "false"
-                      if (
+                      defaultValue =
                         defaultValue === true ||
                         defaultValue === 1 ||
                         defaultValue === "1" ||
                         defaultValue === "true"
-                      ) {
-                        defaultValue = "true";
-                      } else if (
-                        defaultValue === false ||
-                        defaultValue === 0 ||
-                        defaultValue === "0" ||
-                        defaultValue === "false"
-                      ) {
-                        defaultValue = "false";
-                      }
+                          ? "true"
+                          : "false";
                     } else if (normalizedFieldType === "dropdown") {
-                      // Ensure default_value is a string and trim it
-                      defaultValue = defaultValue ? String(defaultValue).trim() : "";
-                      
-                      // Verify the default value exists in dropdown options
-                      if (defaultValue && !dropdownOptions.includes(defaultValue)) {
+                      defaultValue = defaultValue
+                        ? String(defaultValue).trim()
+                        : "";
+
+                      if (
+                        defaultValue &&
+                        !dropdownOptions.includes(defaultValue)
+                      ) {
                         console.warn(
-                          `Default value "${defaultValue}" not found in dropdown options for field "${field.field_label}". Available options:`,
-                          dropdownOptions
+                          `⚠️ Default value "${defaultValue}" not found in dropdown options for "${field.field_label}".`
                         );
                         defaultValue = "";
                       }
                     } else if (normalizedFieldType === "number") {
-                      // Keep numbers as strings for input compatibility
                       defaultValue = defaultValue ? String(defaultValue) : "";
                     } else {
-                      // For text and other types
                       defaultValue = defaultValue ? String(defaultValue) : "";
                     }
 
                     return {
-                      id: field.id || "",
+                      db_id: field.id ?? null, // ✅ preserve real backend ID
                       field_label: field.field_label || "",
                       field_type: normalizedFieldType,
                       default_value: defaultValue,
@@ -379,7 +403,7 @@ const AddProcess = () => {
                   })
                 : [
                     {
-                      id: "",
+                      id: null,
                       field_label: "",
                       field_type: "text",
                       default_value: "",
@@ -389,44 +413,33 @@ const AddProcess = () => {
                     },
                   ];
 
-            console.log("Formatted fields for form:", formattedFields);
+            console.log("✅ Formatted fields for form:", formattedFields);
 
+            // ✅ Reset form with fetched data
             reset({
-              id: processData.id || "",
-              process_number: processData.process_number || "",
-              process_name: processData.process_name || "",
-              process_custom_fields: formattedFields,
+              id: processData.id ?? "",
+              process_number: processData.process_number ?? "",
+              process_name: processData.process_name ?? "",
+              process_custom_fields: formattedFields.map((field) => ({
+                db_id: field.db_id, // ✅ store original id separately
+                field_label: field.field_label,
+                field_type: field.field_type,
+                default_value: field.default_value,
+                dropdown_options: field.dropdown_options,
+                is_required: field.is_required,
+                field_order: field.field_order,
+              })),
             });
           }
         } catch (error) {
           console.error("❌ Error fetching process data:", error);
+          toast.error("Failed to load process details");
         }
       };
 
       fetchProcess();
     }
   }, [id, reset]);
-  
-  const fieldTypes = watch("process_custom_fields");
-  const [initialFieldTypes, setInitialFieldTypes] = useState({});
-
-  // Reset default values when field type changes
-  useEffect(() => {
-    if (fieldTypes && Array.isArray(fieldTypes)) {
-      fieldTypes.forEach((field, index) => {
-        const currentType = field?.field_type;
-        const previousType = initialFieldTypes[index];
-
-        // Only reset if the field type actually changed (not on initial load)
-        if (previousType !== undefined && previousType !== currentType) {
-          setValue(`process_custom_fields.${index}.default_value`, "");
-        }
-
-        // Update the tracked field type
-        setInitialFieldTypes((prev) => ({ ...prev, [index]: currentType }));
-      });
-    }
-  }, [JSON.stringify(fieldTypes?.map((f) => f?.field_type))]);
 
   return (
     <div>
@@ -474,21 +487,23 @@ const AddProcess = () => {
               )}
             </div>
 
-            <div className="w-full bg-primary-50 border border-primary-200 rounded-lg p-3 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-primary-600" />
-                <div>
-                  <h4 className="text-xs font-medium text-primary-800">
-                    Process ID
-                  </h4>
-                  <p className="text-xs text-primary-600">Auto-generated</p>
+            {id && (
+              <div className="w-full bg-primary-50 border border-primary-200 rounded-lg p-3 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-primary-600" />
+                  <div>
+                    <h4 className="text-xs font-medium text-primary-800">
+                      Process ID
+                    </h4>
+                    <p className="text-xs text-primary-600">Auto-generated</p>
+                  </div>
+                </div>
+
+                <div className="text-base font-semibold text-primary-700 font-mono">
+                  {id ? watch("process_number") || "N/A" : "Will be generated"}
                 </div>
               </div>
-
-              <div className="text-base font-semibold text-primary-700 font-mono">
-                {id ? watch("process_number") || "N/A" : "Will be generated"}
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -577,6 +592,22 @@ const AddProcess = () => {
                         `process_custom_fields.${index}.field_type`,
                         {
                           required: "Field type is required",
+                          onChange: (e) => {
+                            clearErrors(
+                              `process_custom_fields.${index}.field_type`
+                            );
+                            setValue(
+                              `process_custom_fields.${index}.default_value`,
+                              ""
+                            );
+                            setValue(
+                              `process_custom_fields.${index}.is_required`,
+                              false
+                            );
+                            clearErrors(
+                              `process_custom_fields.${index}.default_value`
+                            );
+                          },
                         }
                       )}
                       className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
@@ -630,8 +661,9 @@ const AddProcess = () => {
                   </div>
 
                   {/* ✅ DEFAULT VALUE FIELD */}
+                  {/* ✅ DEFAULT VALUE FIELD */}
                   {fieldType === "checkbox" ? (
-                    <div>
+                    <div key={`${index}-checkbox`}>
                       <label className="block text-xs font-medium text-manufacturing-700 mb-1">
                         Default Value <span className="text-red-500">*</span>
                       </label>
@@ -642,6 +674,11 @@ const AddProcess = () => {
                             required: "Default value is required",
                           }
                         )}
+                        onChange={() => {
+                          clearErrors(
+                            `process_custom_fields.${index}.default_value`
+                          );
+                        }}
                         className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
                           errors?.process_custom_fields?.[index]?.default_value
                             ? "border-red-500 bg-red-50"
@@ -664,7 +701,7 @@ const AddProcess = () => {
                       )}
                     </div>
                   ) : fieldType === "dropdown" ? (
-                    <div>
+                    <div key={`${index}-dropdown`}>
                       <label className="block text-xs font-medium text-manufacturing-700 mb-1">
                         Default Value <span className="text-red-500">*</span>
                       </label>
@@ -675,6 +712,11 @@ const AddProcess = () => {
                             required: "Default value is required",
                           }
                         )}
+                        onChange={() => {
+                          clearErrors(
+                            `process_custom_fields.${index}.default_value`
+                          );
+                        }}
                         className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
                           errors?.process_custom_fields?.[index]?.default_value
                             ? "border-red-500 bg-red-50"
@@ -704,12 +746,12 @@ const AddProcess = () => {
                       )}
                     </div>
                   ) : (
-                    <div>
+                    <div key={`${index}-${fieldType || "text"}`}>
                       <label className="block text-xs font-medium text-manufacturing-700 mb-1">
                         Default Value <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="text"
+                        type={fieldType === "number" ? "number" : "text"}
                         {...register(
                           `process_custom_fields.${index}.default_value`,
                           {
@@ -753,7 +795,7 @@ const AddProcess = () => {
                   {/* DELETE BUTTON */}
                   <button
                     type="button"
-                    onClick={() => remove(index)}
+                    onClick={() => handleDelete(index, item)}
                     className="px-3 py-2 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors flex items-center justify-center"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />

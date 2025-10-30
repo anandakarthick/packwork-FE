@@ -24,11 +24,26 @@ const Clients = () => {
     page: 1,
     limit: 20,
     categoryFilter: "client",
+    search: "", // Added search to filters
   });
 
+  // Fetch data when filters change (including search)
   useEffect(() => {
     fetchClientData();
-  }, [filters.page, filters.limit]);
+  }, [filters.page, filters.limit, filters.search]);
+
+  // Debounce search to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        search: searchTerm,
+        page: 1, // Reset to first page on new search
+      }));
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchClientData = async () => {
     setLoading(true);
@@ -56,18 +71,20 @@ const Clients = () => {
       setLoading(false);
     }
   };
+
   const handleImport = () => {
     console.log("Import clicked");
   };
-  const handleSearch = (searchTerm) => {
-    setSearchTerm(searchTerm);
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
   };
+
   const handleDelete = async (row) => {
     if (!window.confirm("Are you sure you want to delete this client?")) return;
 
     setLoading(true);
     try {
-     
       const addressRes = await ClientService.getClientAddressById(row.id);
       if (addressRes.success && addressRes.data.length) {
         await Promise.all(
@@ -76,7 +93,7 @@ const Clients = () => {
           )
         );
       }
-     
+
       const docRes = await ClientService.getCustomerAllDocuments(row.id);
       if (docRes.success && docRes.data.length) {
         await Promise.all(
@@ -86,7 +103,7 @@ const Clients = () => {
           docRes.data.map((doc) => CommonService.deleteDocuemnts(doc.document_id))
         );
       }
-      
+
       const deleteClientRes = await ClientService.deleteClient(row.id);
       if (!deleteClientRes.success) {
         alert(deleteClientRes.message || "Failed to delete client");
@@ -104,16 +121,14 @@ const Clients = () => {
     }
   };
 
-  console.log("Clients Data:", clientsData);
   const handleAddClient = () => {
     console.log("Add Client clicked");
     navigate("/add-client");
   };
+
   const columns = [
-    // { label: "ID", key: "id" },
     { label: "Customer Id", key: "customer_reference_number" },
     { label: "Name", key: "customer_name" },
-    // { label: "Contact Person", key: "contact_person_name" },
     { label: "Email", key: "email_id" },
     { label: "Phone", key: "mobile_number" },
   ];
