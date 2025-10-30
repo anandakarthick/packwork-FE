@@ -305,24 +305,51 @@ const CustomerForm = ({
     return previewableTypes.includes(document.type);
   };
 
-  const handleCopyBillingToShipping = () => {
+  const handleCopyBillingToShipping = async () => {
     const billing = getValues("addresses.0");
     if (!billing) return;
-    setValue(
-      "addresses.1.contact_person_name",
-      billing.contact_person_name || ""
-    );
-    setValue(
-      "addresses.1.contact_person_mobile_number",
-      billing.contact_person_mobile_number || ""
-    );
-    setValue("addresses.1.contact_email", billing.contact_email || "");
-    setValue("addresses.1.address", billing.address || "");
-    setValue("addresses.1.city_id", billing.city_id || "");
-    setValue("addresses.1.state_id", billing.state_id || "");
-    setValue("addresses.1.pincode", billing.pincode || "");
-    setValue("addresses.1.country_id", billing.country_id || "");
+
+    try {
+      // set state first
+      setValue("addresses.1.state_id", billing.state_id || "");
+
+      // ✅ Pass `true` as third argument so city gets set after cities load
+      await fetchCities(billing.state_id, 1, true);
+
+      // Copy other fields
+      setValue(
+        "addresses.1.contact_person_name",
+        billing.contact_person_name || ""
+      );
+      setValue(
+        "addresses.1.contact_person_mobile_number",
+        billing.contact_person_mobile_number || ""
+      );
+      setValue("addresses.1.contact_email", billing.contact_email || "");
+      setValue("addresses.1.address", billing.address || "");
+      setValue("addresses.1.country_id", billing.country_id || "");
+      setValue("addresses.1.pincode", billing.pincode || "");
+      setTimeout(() => {
+        setValue("addresses.1.city_id", billing.city_id || "");
+      }, 500);
+      
+
+      // Clear validation errors for shipping fields
+      [
+        "contact_person_name",
+        "contact_person_mobile_number",
+        "contact_email",
+        "address",
+        "city_id",
+        "state_id",
+        "pincode",
+        "country_id",
+      ].forEach((field) => clearErrors(`addresses.1.${field}`));
+    } catch (error) {
+      console.error("Error while copying billing to shipping:", error);
+    }
   };
+
   const handleFetchGST = async () => {
     console.log("Fetch GST clicked", watch("gst_number"));
     try {
@@ -758,9 +785,19 @@ const CustomerForm = ({
               <input
                 type="text"
                 {...register("website")}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 hover:border-gray-400 transition-colors"
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                  errors.website
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
                 placeholder="Enter Website URL"
               />
+              {errors.website && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.website.message}
+                </p>
+              )}
             </div>
 
             {/* Status - 5th column */}
@@ -769,11 +806,11 @@ const CustomerForm = ({
                 Status
               </label>
               <select
-                {...register("status")}
+                {...register("is_active")}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors`}
               >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value={1}>Active</option>
+                <option value={0}>Inactive</option>
               </select>
             </div>
           </div>

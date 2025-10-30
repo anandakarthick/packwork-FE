@@ -208,7 +208,7 @@ const ViewClient = () => {
                   <div className="text-lg font-bold text-warning-700">
                     {/*{formatCurrency(customer.outstanding_amount || 0)}*/}
                     {/* {formatCurrency(getTotalBalanceDue() - getCreditLimit())} */}
-                    {client.credit_limit || 0}
+                    {client?.credit_limit || 0}
                   </div>
                   <div className="text-sm text-warning-600">Credit Limit</div>
                 </div>
@@ -279,7 +279,9 @@ const ViewClient = () => {
                       Website
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {client?.website ?? "Not provided"}
+                      {client?.website == ""
+                        ? "Not provided"
+                        : client?.website ?? "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -308,6 +310,18 @@ const ViewClient = () => {
                 <div className="flex items-start space-x-2">
                   <div>
                     <p className="text-xs text-manufacturing-500 capitalize">
+                      GST No.
+                    </p>
+                    <p className="font-medium text-manufacturing-800 text-sm">
+                      {client?.gst_number == ""
+                        ? "Not provided"
+                        : client?.gst_number ?? "Not provided"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div>
+                    <p className="text-xs text-manufacturing-500 capitalize">
                       Payments Terms
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
@@ -317,15 +331,16 @@ const ViewClient = () => {
                     </p>
                   </div>
                 </div>
+
                 <div className="flex items-start space-x-2">
                   <div>
                     <p className="text-xs text-manufacturing-500 capitalize">
-                      GST No.
+                      Business Type
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {client?.gst_number == ""
-                        ? "Not provided"
-                        : client?.gst_number ?? "Not provided"}
+                      {businessTypes.find(
+                        (pt) => pt.id === client?.business_type_id
+                      )?.display_label ?? "Not provided"}
                     </p>
                   </div>
                 </div>

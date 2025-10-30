@@ -269,7 +269,9 @@ const ViewSupplier = () => {
                       Website
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.website == "" ? "Not provided" : supplier?.website ?? "Not provided"}
+                      {supplier?.website == ""
+                        ? "Not provided"
+                        : supplier?.website ?? "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -298,30 +300,37 @@ const ViewSupplier = () => {
                 <div className="flex items-start space-x-2">
                   <div>
                     <p className="text-xs text-manufacturing-500 capitalize">
-                      Payments Terms
+                      GST No.
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {paymentTerms.find((pt) => pt.id === supplier?.payment_term_id)?.display_label ??  "Not provided"}
+                      {supplier?.gst_number == ""
+                        ? "Not provided"
+                        : supplier?.gst_number ?? "Not provided"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-2">
                   <div>
                     <p className="text-xs text-manufacturing-500 capitalize">
-                      GST No.
+                      Payments Terms
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.gst_number == "" ? "Not provided" : supplier?.gst_number ?? "Not provided"}
+                      {paymentTerms.find(
+                        (pt) => pt.id === supplier?.payment_term_id
+                      )?.display_label ?? "Not provided"}
                     </p>
                   </div>
                 </div>
+
                 <div className="flex items-start space-x-2">
                   <div>
                     <p className="text-xs text-manufacturing-500 capitalize">
                       Business type
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {businessTypes.find((pt) => pt.id === supplier?.business_type_id)?.display_label ??  "Not provided"}
+                      {businessTypes.find(
+                        (pt) => pt.id === supplier?.business_type_id
+                      )?.display_label ?? "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -365,7 +374,8 @@ const ViewSupplier = () => {
                         <PhoneCall className="h-3 w-3 text-manufacturing-500 mt-0.5" />
                         <div>
                           <p className="font-medium text-manufacturing-800 text-sm break-all">
-                            {address?.contact_person_mobile_number ?? "Not provided"}
+                            {address?.contact_person_mobile_number ??
+                              "Not provided"}
                           </p>
                         </div>
                       </div>
@@ -445,7 +455,7 @@ const ViewSupplier = () => {
                       Notes
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.notes ?? "Not provided"}
+                      {supplier?.notes == "" ? "Not provided" : supplier?.notes ?? "Not provided"}
                     </p>
                   </div>
                 </div>

@@ -24,7 +24,7 @@ const Clients = () => {
     page: 1,
     limit: 20,
     search: "",
-    is_active: "", // ✅ new filter
+    is_active: 1, // ✅ new filter
   });
 
   const [statusFilter, setStatusFilter] = useState("");
@@ -190,6 +190,7 @@ const Clients = () => {
         addButtonText="Add New Client"
         onImport={handleImport}
         showImport={true}
+        showFilter={true}
         statusFilter={statusFilter}
         handleStatusFilter={handleStatusFilter}
         onClearFilters={handleClearFilters}

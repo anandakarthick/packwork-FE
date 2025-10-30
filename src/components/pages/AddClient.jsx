@@ -49,6 +49,7 @@ const AddClient = () => {
       website: "",
       payment_term_id: "",
       has_gst: false,
+      id_active: 1,
       addresses: [
         {
           id: "",
@@ -152,6 +153,8 @@ const AddClient = () => {
     const gstPattern =
       /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
     const numberPattern = /^\d+(\.\d{1,2})?$/;
+    const websitePattern =
+      /^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+([\/?#].*)?$/;
 
     const validateField = (condition, field, message) => {
       if (condition) {
@@ -173,6 +176,11 @@ const AddClient = () => {
       data.mobile_number && !mobilePattern.test(data.mobile_number),
       "mobile_number",
       "Enter a valid 10-digit mobile number."
+    );
+    validateField(
+      data.website && !websitePattern.test(data.website),
+      "website",
+      "Enter a valid website URL."
     );
     validateField(
       data.alternative_mobile_number &&
@@ -243,6 +251,7 @@ const AddClient = () => {
         notes: data.notes || "",
         website: data.website || "",
         gst_number: data.gst_number || "",
+        is_active: data.is_active || 1,
       };
 
       let customerId = data.id || customerIdRef.current || id || null;
