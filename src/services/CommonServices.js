@@ -1,5 +1,5 @@
 import api from "./api";
-const GST_KEY = "5f0531d73555435f197268154bfcdeff";
+const GST_KEY = "2ae33651e3cf9ec8611b7c417f86c339";
 export const CommonService = {
   uploadDocuments: async (data) => {
     try {

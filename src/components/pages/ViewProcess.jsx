@@ -212,7 +212,7 @@ const ViewProcess = () => {
                           </p>
                         </div>
                       </div>
-                      {field.field_type === "Dropdown" && (
+                      {field.field_type === "dropdown" && (
                         <button
                           type="button"
                           onClick={() => toggleExpand(index)}
@@ -227,7 +227,7 @@ const ViewProcess = () => {
                         </button>
                       )}
 
-                      {field.field_type === "Dropdown" &&
+                      {field.field_type === "dropdown" &&
                         expandedIndex === index && (
                           <div className="mt-3 border-t border-manufacturing-100 pt-3">
                             {(() => {
