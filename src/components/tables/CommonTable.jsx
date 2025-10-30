@@ -47,19 +47,19 @@ const CommonTable = ({
                 {columns.map((col) => (
                   <td key={col.key} className="px-4 py-2 text-sm">
                     {col.render ? (
-                      col.render(row) // ✅ if render callback is defined
-                    ) : col.key === "status" ? (
+                      col.render(row)
+                    ) : col.key === "is_active" ? ( // ✅ Correct condition
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          row.is_active
+                          row.is_active == 1
                             ? "bg-success-100 text-success-800"
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {row.is_active ? "Active" : "Inactive"}
+                        {row.is_active == 1 ? "Active" : "Inactive"}
                       </span>
                     ) : (
-                      row[col.key]
+                      row[col.key] // ✅ Corrected key access
                     )}
                   </td>
                 ))}

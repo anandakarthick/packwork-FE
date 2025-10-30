@@ -21,34 +21,69 @@ const Process = () => {
   });
 
   const [filters, setFilters] = useState({
+    page: 1,
+    limit: 20,
+    search: "",
+    is_active: "", // ✅ new filter
+  });
+
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const handleStatusFilter = (e) => {
+    const value = e.target.value;
+
+    setStatusFilter(value);
+    setFilters((prev) => ({
+      ...prev,
       page: 1,
-      limit: 20,
-      categoryFilter: "client",
-      search: "", // Added search to filters
-    });
-  
-    // Fetch data when filters change (including search)
-    useEffect(() => {
-      fetchProcessData();
-    }, [filters.page, filters.limit, filters.search]);
-  
-    // Debounce search to avoid too many API calls
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setFilters(prev => ({
-          ...prev,
-          search: searchTerm,
-          page: 1, // Reset to first page on new search
-        }));
-      }, 500); // 500ms debounce
-  
-      return () => clearTimeout(timer);
-    }, [searchTerm]);
+      is_active: value === "active" ? 1 : value === "inactive" ? 0 : "", // ✅ '' means no filter
+    }));
+  };
+  // Fetch data when filters change (including search)
+  useEffect(() => {
+    fetchProcessData();
+  }, [filters.page, filters.limit, filters.search, filters.is_active]);
+
+  // Debounce search to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => ({
+        ...prev,
+        search: searchTerm,
+        page: 1, // Reset to first page on new search
+      }));
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("");
+    setFilters((prev) => ({
+      ...prev,
+      search: "",
+      is_active: "",
+      page: 1,
+    }));
+  };
 
   const fetchProcessData = async () => {
     setLoading(true);
     try {
-      const response = await ProcessService.getAllProcesses(filters);
+      const params = {
+        page: filters.page,
+        limit: filters.limit,
+        search: filters.search,
+      };
+
+      if (
+        filters.is_active !== "" &&
+        filters.is_active !== null &&
+        filters.is_active !== undefined
+      ) {
+        params.is_active = filters.is_active;
+      }
+      const response = await ProcessService.getAllProcesses(params);
       console.log("process response:", response?.data);
 
       const processWithFields = await Promise.all(
@@ -88,7 +123,7 @@ const Process = () => {
   const handleImport = () => {
     console.log("Import clicked");
   };
-   const handleSearch = (e) => {
+  const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
   const handleDelete = async (row) => {
@@ -144,6 +179,7 @@ const Process = () => {
         </span>
       ),
     },
+    { lable: "Status", key: "is_active" },
   ];
 
   return (
@@ -163,6 +199,9 @@ const Process = () => {
         addButtonText="Add New Process"
         onImport={handleImport}
         showImport={true}
+        statusFilter={statusFilter}
+        handleStatusFilter={handleStatusFilter}
+        onClearFilters={handleClearFilters}
       />
 
       <CommonTable

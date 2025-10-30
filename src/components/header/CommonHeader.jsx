@@ -1,5 +1,4 @@
-import { Search, Plus, Upload, Download, Filter } from "lucide-react";
-import { useState } from "react";
+import { Search, Plus, Upload, Download, Filter, XCircle } from "lucide-react";
 
 const CommonHeader = ({
   title,
@@ -8,20 +7,16 @@ const CommonHeader = ({
   onSearch,
   searchPlaceholder = "Search...",
   onAdd,
-
-  onImport = () => {
-    console.log("import");
-  },
-  onExport = () => {
-    console.log("export");
-  },
+  statusFilter,
+  handleStatusFilter,
+  onClearFilters, // ✅ clear handler
+  onImport = () => {},
+  onExport = () => {},
   addButtonText = "Add",
   showAddButton = true,
 }) => {
-  const [statusFilter, setStatusFilter] = useState("");
-  const handleStatusFilter = (e) => {
-    setStatusFilter(e.target.value);
-  };
+  const showClearButton = searchTerm !== "" || statusFilter !== ""; // ✅ condition check
+
   return (
     <div className="mb-4">
       {/* Header title + add button */}
@@ -54,7 +49,7 @@ const CommonHeader = ({
       <div className="card-corrugated p-4 mt-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* 🔍 Search + Filter on the left */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
             {/* Search Input */}
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-manufacturing-400 h-4 w-4" />
@@ -78,9 +73,19 @@ const CommonHeader = ({
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="blocked">Blocked</option>
               </select>
             </div>
+
+            {/* ✅ Clear Button - only shown when active filters */}
+            {showClearButton && (
+              <button
+                onClick={onClearFilters}
+                className="flex items-center px-3 py-2 text-sm text-manufacturing-600 border border-manufacturing-300 rounded-lg hover:bg-manufacturing-50 transition-colors"
+              >
+                <XCircle className="h-4 w-4 mr-2 text-gray-500" />
+                Clear
+              </button>
+            )}
           </div>
 
           {/* ⚙️ Action Buttons on the right */}
@@ -95,21 +100,21 @@ const CommonHeader = ({
               </button>
             )}
 
-            <button
+            {/* <button
               onClick={onImport}
               className="px-4 py-2.5 text-manufacturing-600 border border-manufacturing-300 rounded-lg hover:bg-manufacturing-50 transition-colors font-medium flex items-center"
             >
               <Upload className="h-4 w-4 mr-2" />
               Import
-            </button>
+            </button> */}
 
-            <button
+            {/* <button
               onClick={onExport}
               className="px-4 py-2.5 text-manufacturing-600 border border-manufacturing-300 rounded-lg hover:bg-manufacturing-50 transition-colors font-medium flex items-center"
             >
               <Download className="h-4 w-4 mr-2" />
               Export
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

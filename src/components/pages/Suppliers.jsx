@@ -21,32 +21,70 @@ const Suppliers = () => {
   });
 
   const [filters, setFilters] = useState({
-    page: 1,
-    limit: 20,
-    categoryFilter: "supplier",
+     page: 1,
+     limit: 20,
+     search: "",
+     is_active: "", // ✅ new filter
+   });
+ 
+   const [statusFilter, setStatusFilter] = useState("");
+ 
+   const handleStatusFilter = (e) => {
+     const value = e.target.value;
+ 
+     setStatusFilter(value);
+     setFilters((prev) => ({
+       ...prev,
+       page: 1,
+       is_active: value === "active" ? 1 : value === "inactive" ? 0 : "", // ✅ '' means no filter
+     }));
+   };
+   // Fetch data when filters change (including search)
+   useEffect(() => {
+     fetchClientData();
+   }, [filters.page, filters.limit, filters.search, filters.is_active]);
+ 
+   // Debounce search to avoid too many API calls
+   useEffect(() => {
+     const timer = setTimeout(() => {
+       setFilters((prev) => ({
+         ...prev,
+         search: searchTerm,
+         page: 1, // Reset to first page on new search
+       }));
+     }, 500); // 500ms debounce
+ 
+     return () => clearTimeout(timer);
+   }, [searchTerm]);
+   const handleClearFilters = () => {
+  setSearchTerm("");
+  setStatusFilter("");
+  setFilters((prev) => ({
+    ...prev,
     search: "",
-  });
+    is_active: "",
+    page: 1,
+  }));
+};
 
-  useEffect(() => {
-    fetchClientData();
-  }, [filters.page, filters.limit, filters.search]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setFilters((prev) => ({
-        ...prev,
-        search: searchTerm,
-        page: 1,
-      }));
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const fetchClientData = async () => {
     setLoading(true);
     try {
-      const response = await ClientService.getAllClients(filters);
+      const params = {
+        page: filters.page,
+        limit: filters.limit,
+        search: filters.search,
+      };
+
+      if (
+        filters.is_active !== "" &&
+        filters.is_active !== null &&
+        filters.is_active !== undefined
+      ) {
+        params.is_active = filters.is_active;
+      }
+      const response = await ClientService.getAllClients(params);
       console.log("suppliers response:", response?.data);
       setClientsData(
         response?.data.filter((c) => c.customer_type === "vendor") || []
@@ -128,6 +166,7 @@ const Suppliers = () => {
     // { label: "Contact Person", key: "contact_person_name" },
     { label: "Email", key: "email_id" },
     { label: "Phone", key: "mobile_number" },
+    { label: "Status", key: "is_active" },
   ];
 
   return (
@@ -147,6 +186,9 @@ const Suppliers = () => {
         addButtonText="Add New Supplier"
         onImport={handleImport}
         showImport={true}
+        statusFilter={statusFilter}
+        handleStatusFilter={handleStatusFilter}
+        onClearFilters={handleClearFilters}
       />
 
       <CommonTable
