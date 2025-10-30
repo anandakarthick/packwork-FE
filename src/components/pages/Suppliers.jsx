@@ -6,6 +6,7 @@ import CommonHeader from "../header/CommonHeader";
 import { ClientService } from "../../services/ClientServices";
 import { Truck } from "lucide-react";
 import { CommonService } from "../../services/CommonServices";
+import toast from "react-hot-toast";
 
 const Suppliers = () => {
   const navigate = useNavigate();
@@ -87,9 +88,10 @@ const Suppliers = () => {
           return;
         }
   
-        
+        toast.success("Client deleted successfully");
         fetchClientData();
       } catch (error) {
+        toast.error("Failed to delete client or related records");
         console.error("Error deleting client:", error);
         alert("Failed to delete client or related records");
       } finally {

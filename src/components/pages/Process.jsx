@@ -94,7 +94,7 @@ const Process = () => {
 
       const processDeleteRes = await ProcessService.deleteProcess(row.id);
       if (processDeleteRes?.success) {
-        toast.success("✅ Process and custom fields deleted successfully!");
+        toast.success("Process and custom fields deleted successfully!");
         await fetchProcessData();
       } else {
         throw new Error(
@@ -102,7 +102,7 @@ const Process = () => {
         );
       }
     } catch (error) {
-      console.error("❌ Error deleting process:", error);
+      console.error("Error deleting process:", error);
       toast.error(
         error.message || "Failed to delete process. Please try again."
       );

@@ -38,7 +38,7 @@ const AddProcess = () => {
         {
           id: "",
           field_label: "",
-          field_type: "Text",
+          field_type: "text",
           default_value: "",
           dropdown_options: [],
           is_required: 0,
@@ -58,21 +58,117 @@ const AddProcess = () => {
 
     try {
       let processId = data.id || processIdRef.current || null;
-      const { process_custom_fields, id, ...processPayload } = data;
+      const { process_custom_fields, id, process_number, ...processPayload } =
+        data;
 
-      
+      const textPattern = /^[A-Za-z0-9\s_-]+$/;
+
+      if (!textPattern.test(processPayload.process_name)) {
+        toast.error("Process name cannot contain special characters.");
+        throw new Error("Process name cannot contain special characters.");
+      }
+
+      const seenOrders = new Set();
+      const seenLabelTypeCombo = new Set();
+
+      for (const field of process_custom_fields) {
+        const { field_label, field_type, field_order, default_value } = field;
+
+        if (!textPattern.test(field_label)) {
+          toast.error(
+            `Field label "${field_label}" contains special characters.`
+          );
+          throw new Error(
+            `Field label "${field_label}" contains special characters.`
+          );
+        }
+
+        if (seenOrders.has(field_order)) {
+          toast.error(
+            `Duplicate field order found: ${field_order}. Each field must have a unique order.`
+          );
+          throw new Error(
+            `Duplicate field order found: ${field_order}. Each field must have a unique order.`
+          );
+        }
+        seenOrders.add(field_order);
+
+        const comboKey = `${field_label.toLowerCase()}_${field_type.toLowerCase()}`;
+        if (seenLabelTypeCombo.has(comboKey)) {
+          toast.error(
+            `Duplicate combination found: "${field_label}" with type "${field_type}".`
+          );
+          throw new Error(
+            `Duplicate combination found: "${field_label}" with type "${field_type}".`
+          );
+        }
+        seenLabelTypeCombo.add(comboKey);
+
+        if (
+          default_value !== undefined &&
+          default_value !== null &&
+          default_value !== ""
+        ) {
+          switch (field_type.toLowerCase()) {
+            case "number":
+              if (isNaN(default_value)) {
+                toast.error(
+                  `Default value for "${field_label}" must be a number.`
+                );
+                throw new Error(
+                  `Default value for "${field_label}" must be a number.`
+                );
+              }
+              break;
+
+            case "checkbox":
+              if (
+                !["true", "false", true, false, 1, 0, "1", "0"].includes(
+                  default_value
+                )
+              ) {
+                toast.error(
+                  `Default value for "${field_label}" must be true or false.`
+                );
+                throw new Error(
+                  `Default value for "${field_label}" must be true or false.`
+                );
+              }
+              break;
+
+            case "dropdown":
+              if (!field.dropdown_options?.includes(default_value)) {
+                toast.error(
+                  `Default value for "${field_label}" must be one of the dropdown options.`
+                );
+                throw new Error(
+                  `Default value for "${field_label}" must be one of the dropdown options.`
+                );
+              }
+              break;
+
+            default:
+              if (typeof default_value !== "string") {
+                toast.error(`Default value for "${field_label}" must be text.`);
+                throw new Error(
+                  `Default value for "${field_label}" must be text.`
+                );
+              }
+          }
+        }
+      }
+
       if (processId) {
-      
         const updateRes = await ProcessService.updateProcess(
           processId,
           processPayload
         );
         if (!updateRes?.success) {
+          toast.error(updateRes?.message || "Failed to update process");
           throw new Error(updateRes?.message || "Failed to update process");
         }
         console.log("✅ Process updated:", processId);
       } else {
-        
         const createRes = await ProcessService.createProcess(processPayload);
         if (!createRes?.success) {
           throw new Error(createRes?.message || "Failed to create process");
@@ -82,15 +178,14 @@ const AddProcess = () => {
         if (!processId) throw new Error("Process ID not found in response");
 
         processIdRef.current = processId;
-        setValue("id", processId); 
+        setValue("id", processId);
         console.log("✅ Process created:", processId);
       }
 
-      
-      for (const field of process_custom_fields) {
+      for (let i = 0; i < process_custom_fields.length; i++) {
+        const field = process_custom_fields[i];
         const { id: fieldId, process_id, ...cleanField } = field;
 
-        // 🔹 Normalize "is_required" to 0 or 1
         cleanField.is_required =
           cleanField.is_required === true ||
           cleanField.is_required === 1 ||
@@ -98,7 +193,6 @@ const AddProcess = () => {
             ? 1
             : 0;
 
-       
         let fieldPayload;
         if (
           cleanField.field_type?.toLowerCase() === "dropdown" &&
@@ -110,32 +204,49 @@ const AddProcess = () => {
           fieldPayload = { ...rest };
         }
 
-        if (fieldId) {
-          // 🔹 Update existing field
-          const fieldRes = await ProcessService.updateProcessCustomField(
-            fieldId,
-            fieldPayload
-          );
-          if (!fieldRes?.success) {
-            console.warn("⚠️ Failed to update field:", cleanField);
+        let fieldRes;
+        try {
+          if (fieldId) {
+            fieldRes = await ProcessService.updateProcessCustomField(
+              fieldId,
+              fieldPayload
+            );
+          } else {
+            fieldRes = await ProcessService.createProcessCustomFields(
+              processId,
+              fieldPayload
+            );
           }
-        } else {
-          // 🔹 Create new field
-          const fieldRes = await ProcessService.createProcessCustomFields(
-            processId,
-            fieldPayload
-          );
+
           if (!fieldRes?.success) {
-            console.warn("⚠️ Failed to create field:", cleanField);
+            let errorMsg = fieldRes?.message || "Failed to save custom field";
+
+            if (
+              fieldRes?.error?.includes("Duplicate entry") ||
+              fieldRes?.message?.includes("Duplicate entry")
+            ) {
+              errorMsg = `Duplicate field: "${cleanField.field_label}" already exists in this process.`;
+            }
+
+            toast.error(errorMsg);
+            throw new Error(errorMsg);
           }
+
+          if (!fieldId && fieldRes?.data?.id) {
+            process_custom_fields[i].id = fieldRes.data.id;
+          }
+        } catch (err) {
+          console.error("❌ Error saving field:", cleanField, err);
+          const errorMsg = `Error saving field "${cleanField.field_label}"`;
+          toast.error(errorMsg);
+          throw err;
         }
       }
 
-      // ✅ Step 3: Final success
       toast.success(
         processIdRef.current || id
-          ? "✅ Process updated successfully!"
-          : "✅ Process and custom fields created successfully!"
+          ? "Process updated successfully!"
+          : "Process and custom fields created successfully!"
       );
 
       reset();
@@ -191,26 +302,72 @@ const AddProcess = () => {
             ? customFieldsRes.data
             : [];
 
-          // ✅ Prepare form reset payload
           if (processData) {
-            reset({
-              id: processData.id || "",
-              process_number: processData.process_number || "",
-              process_name: processData.process_name || "",
-              process_custom_fields:
-                processCustomFieldsData.length > 0
-                  ? processCustomFieldsData.map((field, index) => ({
+            const formattedFields =
+              processCustomFieldsData.length > 0
+                ? processCustomFieldsData.map((field, index) => {
+                    // Parse dropdown options
+                    const dropdownOptions = Array.isArray(
+                      field.dropdown_options
+                    )
+                      ? field.dropdown_options
+                      : typeof field.dropdown_options === "string"
+                      ? field.dropdown_options
+                          .split(",")
+                          .map((opt) => opt.trim())
+                      : [];
+
+                    // Normalize field_type to lowercase to match select options
+                    const normalizedFieldType = field.field_type 
+                      ? field.field_type.toLowerCase() 
+                      : "text";
+
+                    // Normalize default_value based on field_type
+                    let defaultValue = field.default_value ?? "";
+
+                    if (normalizedFieldType === "checkbox") {
+                      // Convert checkbox values to string "true" or "false"
+                      if (
+                        defaultValue === true ||
+                        defaultValue === 1 ||
+                        defaultValue === "1" ||
+                        defaultValue === "true"
+                      ) {
+                        defaultValue = "true";
+                      } else if (
+                        defaultValue === false ||
+                        defaultValue === 0 ||
+                        defaultValue === "0" ||
+                        defaultValue === "false"
+                      ) {
+                        defaultValue = "false";
+                      }
+                    } else if (normalizedFieldType === "dropdown") {
+                      // Ensure default_value is a string and trim it
+                      defaultValue = defaultValue ? String(defaultValue).trim() : "";
+                      
+                      // Verify the default value exists in dropdown options
+                      if (defaultValue && !dropdownOptions.includes(defaultValue)) {
+                        console.warn(
+                          `Default value "${defaultValue}" not found in dropdown options for field "${field.field_label}". Available options:`,
+                          dropdownOptions
+                        );
+                        defaultValue = "";
+                      }
+                    } else if (normalizedFieldType === "number") {
+                      // Keep numbers as strings for input compatibility
+                      defaultValue = defaultValue ? String(defaultValue) : "";
+                    } else {
+                      // For text and other types
+                      defaultValue = defaultValue ? String(defaultValue) : "";
+                    }
+
+                    return {
                       id: field.id || "",
                       field_label: field.field_label || "",
-                      field_type: field.field_type || "Text",
-                      default_value: field.default_value || "",
-                      dropdown_options: Array.isArray(field.dropdown_options)
-                        ? field.dropdown_options
-                        : typeof field.dropdown_options === "string"
-                        ? field.dropdown_options
-                            .split(",")
-                            .map((opt) => opt.trim())
-                        : [],
+                      field_type: normalizedFieldType,
+                      default_value: defaultValue,
+                      dropdown_options: dropdownOptions,
                       is_required:
                         field.is_required === true ||
                         field.is_required === 1 ||
@@ -218,18 +375,27 @@ const AddProcess = () => {
                           ? 1
                           : 0,
                       field_order: field.field_order || index + 1,
-                    }))
-                  : [
-                      {
-                        id: "",
-                        field_label: "",
-                        field_type: "Text",
-                        default_value: "",
-                        dropdown_options: [],
-                        is_required: 0,
-                        field_order: 1,
-                      },
-                    ],
+                    };
+                  })
+                : [
+                    {
+                      id: "",
+                      field_label: "",
+                      field_type: "text",
+                      default_value: "",
+                      dropdown_options: [],
+                      is_required: 0,
+                      field_order: 1,
+                    },
+                  ];
+
+            console.log("Formatted fields for form:", formattedFields);
+
+            reset({
+              id: processData.id || "",
+              process_number: processData.process_number || "",
+              process_name: processData.process_name || "",
+              process_custom_fields: formattedFields,
             });
           }
         } catch (error) {
@@ -240,6 +406,27 @@ const AddProcess = () => {
       fetchProcess();
     }
   }, [id, reset]);
+  
+  const fieldTypes = watch("process_custom_fields");
+  const [initialFieldTypes, setInitialFieldTypes] = useState({});
+
+  // Reset default values when field type changes
+  useEffect(() => {
+    if (fieldTypes && Array.isArray(fieldTypes)) {
+      fieldTypes.forEach((field, index) => {
+        const currentType = field?.field_type;
+        const previousType = initialFieldTypes[index];
+
+        // Only reset if the field type actually changed (not on initial load)
+        if (previousType !== undefined && previousType !== currentType) {
+          setValue(`process_custom_fields.${index}.default_value`, "");
+        }
+
+        // Update the tracked field type
+        setInitialFieldTypes((prev) => ({ ...prev, [index]: currentType }));
+      });
+    }
+  }, [JSON.stringify(fieldTypes?.map((f) => f?.field_type))]);
 
   return (
     <div>
@@ -254,7 +441,6 @@ const AddProcess = () => {
         onSubmit={handleSubmit(onSubmit)}
         submitText={id ? "Update Process" : "Create Process"}
       >
-        {/* ---------- BASIC INFO ---------- */}
         <div className="card-corrugated p-4 space-y-3">
           <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
             <div className="bg-primary-100 rounded-full p-1 mr-2">
@@ -321,10 +507,11 @@ const AddProcess = () => {
               onClick={() =>
                 append({
                   field_label: "",
-                  field_type: "Text",
+                  field_type: "text",
                   field_order: fields.length + 1,
                   is_required: 0,
                   dropdown_options: [],
+                  default_value: "",
                 })
               }
               className="px-4 py-2 bg-gradient-to-r from-corrugated-600 to-corrugated-700 text-white rounded-lg hover:from-corrugated-700 hover:to-corrugated-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl flex items-center text-sm"
@@ -344,11 +531,11 @@ const AddProcess = () => {
 
             return (
               <div
-                key={item.id}
+                key={item.id || index}
                 className="border-b border-gray-200 pb-4 mb-4 space-y-3"
               >
                 {/* MAIN FIELD ROW */}
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 items-end">
                   {/* FIELD LABEL */}
                   <div>
                     <label className="block text-xs font-medium text-manufacturing-700 mb-1">
@@ -362,9 +549,22 @@ const AddProcess = () => {
                           required: "Field label is required",
                         }
                       )}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                        errors?.process_custom_fields?.[index]?.field_label
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
                       placeholder="Enter field label"
                     />
+                    {errors?.process_custom_fields?.[index]?.field_label && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {
+                          errors.process_custom_fields[index].field_label
+                            .message
+                        }
+                      </p>
+                    )}
                   </div>
 
                   {/* FIELD TYPE */}
@@ -379,12 +579,23 @@ const AddProcess = () => {
                           required: "Field type is required",
                         }
                       )}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                        errors?.process_custom_fields?.[index]?.field_type
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
                     >
+                      <option value="">Select type</option>
                       <option value="text">Text</option>
                       <option value="number">Number</option>
                       <option value="dropdown">Dropdown</option>
                     </select>
+                    {errors?.process_custom_fields?.[index]?.field_type && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.process_custom_fields[index].field_type.message}
+                      </p>
+                    )}
                   </div>
 
                   {/* FIELD ORDER */}
@@ -400,10 +611,130 @@ const AddProcess = () => {
                           required: "Order is required",
                         }
                       )}
-                      className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                        errors?.process_custom_fields?.[index]?.field_order
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      }`}
                       placeholder="Order"
                     />
+                    {errors?.process_custom_fields?.[index]?.field_order && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {
+                          errors.process_custom_fields[index].field_order
+                            .message
+                        }
+                      </p>
+                    )}
                   </div>
+
+                  {/* ✅ DEFAULT VALUE FIELD */}
+                  {fieldType === "checkbox" ? (
+                    <div>
+                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                        Default Value <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        {...register(
+                          `process_custom_fields.${index}.default_value`,
+                          {
+                            required: "Default value is required",
+                          }
+                        )}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                          errors?.process_custom_fields?.[index]?.default_value
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        <option value="">Select default value</option>
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                      </select>
+                      {errors?.process_custom_fields?.[index]
+                        ?.default_value && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {
+                            errors.process_custom_fields[index].default_value
+                              .message
+                          }
+                        </p>
+                      )}
+                    </div>
+                  ) : fieldType === "dropdown" ? (
+                    <div>
+                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                        Default Value <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        {...register(
+                          `process_custom_fields.${index}.default_value`,
+                          {
+                            required: "Default value is required",
+                          }
+                        )}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                          errors?.process_custom_fields?.[index]?.default_value
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        <option value="">Select default value</option>
+                        {dropdownOptions?.length > 0 ? (
+                          dropdownOptions.map((opt, optIndex) => (
+                            <option key={optIndex} value={opt}>
+                              {opt}
+                            </option>
+                          ))
+                        ) : (
+                          <option disabled>No options available</option>
+                        )}
+                      </select>
+                      {errors?.process_custom_fields?.[index]
+                        ?.default_value && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {
+                            errors.process_custom_fields[index].default_value
+                              .message
+                          }
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                        Default Value <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        {...register(
+                          `process_custom_fields.${index}.default_value`,
+                          {
+                            required: "Default value is required",
+                          }
+                        )}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                          errors?.process_custom_fields?.[index]?.default_value
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        placeholder="Enter default value"
+                      />
+                      {errors?.process_custom_fields?.[index]
+                        ?.default_value && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {
+                            errors.process_custom_fields[index].default_value
+                              .message
+                          }
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* REQUIRED CHECKBOX */}
                   <label className="flex align-items-center md:justify-center">
@@ -430,11 +761,11 @@ const AddProcess = () => {
                   </button>
                 </div>
 
-                {/* SHOW DROPDOWN OPTION SECTION ONLY IF SELECT TYPE */}
-                {fieldType === "Dropdown" && (
+                {/* SHOW DROPDOWN OPTIONS SECTION */}
+                {fieldType === "dropdown" && (
                   <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mt-2">
                     <p className="text-xs font-medium text-gray-700 mb-2">
-                      Add Options to the select field
+                      Add Options to the dropdown field
                     </p>
                     <div className="flex items-center gap-2">
                       <input

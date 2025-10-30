@@ -34,6 +34,36 @@ export const CommonService = {
     }
   },
 
+  createConfig: async (data) => {
+    try {
+      const response = await api.post("/common/configs", data);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating config:", error);
+      return { success: false, message: error.response?.data?.message };
+    }
+  },
+
+  updateConfig: async (id, data) => {
+    try {
+      const response = await api.put(`/common/configs/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating config:", error);
+      return { success: false, message: error.response?.data?.message };
+    }
+  },
+
+  deleteConfig: async (id) => {
+    try {
+      const response = await api.delete(`/common/configs/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting config:", error);
+      return { success: false, message: error.response?.data?.message };
+    }
+  },
+
   getGroupedConfigs: async () => {
     try {
       const response = await api.get("/common/configs/grouped");
