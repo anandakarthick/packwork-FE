@@ -65,9 +65,9 @@ const AdminLayout = () => {
       sectionName: "Master",
       collapsible: true,
       items: [
-        { name: "Clients", href: "/clients", icon: User },
-        { name: "Suppliers", href: "/suppliers", icon: Factory },
-        { name: "Process", href: "/process", icon: Settings2 }
+        { name: "Clients", href: "/client", icon: User },
+        { name: "Suppliers", href: "/supplier", icon: Factory },
+        { name: "Process", href: "/process", icon: Settings2 },
       ],
     },
     // {
@@ -85,6 +85,8 @@ const AdminLayout = () => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("Username");
     toast.success("Logged out successfully");
     navigate("/");
   };
@@ -123,7 +125,9 @@ const AdminLayout = () => {
     return (
       <div className="space-y-1">
         {section.items.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive =
+            location.pathname === item.href ||
+            location.pathname.includes(item.href.replace("/", ""));
 
           if (!isMobile && sidebarCollapsed) {
             return (
@@ -272,7 +276,7 @@ const AdminLayout = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Link
+              {/* <Link
                 to="/admin/upgrade-plan"
                 className="flex items-center text-xs text-manufacturing-600 hover:text-corrugated-600 transition-colors group px-3 py-2 rounded-lg hover:bg-corrugated-50"
               >
@@ -280,10 +284,10 @@ const AdminLayout = () => {
                 <span className="hidden sm:inline font-medium">
                   Upgrade Plan
                 </span>
-              </Link>
+              </Link> */}
 
               <div className="relative">
-                <button
+                {/* <button
                   onClick={toggleSettingsDropdown}
                   className="flex items-center text-xs text-manufacturing-600 hover:text-corrugated-600 transition-colors group px-3 py-2 rounded-lg hover:bg-corrugated-50"
                 >
@@ -294,7 +298,7 @@ const AdminLayout = () => {
                   >
                     Settings
                   </Link>
-                </button>
+                </button> */}
 
                 {settingsDropdownOpen && (
                   <>
@@ -330,11 +334,8 @@ const AdminLayout = () => {
                 <div className="text-xs text-manufacturing-700">
                   <span className="font-medium">Welcome back, </span>
                   <span className="font-semibold text-corrugated-700">
-                    {"Admin"}
+                    {localStorage.getItem("Username") || "Admin"}
                   </span>
-                </div>
-                <div className="text-xs text-manufacturing-500">
-                  {"Company Admin"}
                 </div>
               </div>
 

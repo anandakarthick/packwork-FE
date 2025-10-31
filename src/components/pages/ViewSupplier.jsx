@@ -17,9 +17,11 @@ import {
   Mail,
   Phone,
   PhoneCall,
+  PlusCircle,
   Truck,
   TruckIcon,
   User,
+  Wallet,
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -148,7 +150,7 @@ const ViewSupplier = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
-                onClick={() => navigate("/suppliers")}
+                onClick={() => navigate("/supplier")}
                 className="mr-3 p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -176,7 +178,7 @@ const ViewSupplier = () => {
                 Edit
               </button>
               <button
-                onClick={() => navigate("/suppliers")}
+                onClick={() => navigate("/supplier")}
                 className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -194,7 +196,7 @@ const ViewSupplier = () => {
                   // onClick={() => toggleSection("creditNotes")}
                   title="Click to view credit notes details"
                 >
-                  <CreditCard className="h-6 w-6 text-green-600 mx-auto mb-2" />
+                  <Wallet className="h-6 w-6 text-green-600 mx-auto mb-2" />
                   <div className="text-lg font-bold text-green-700">
                     {supplier?.advance_amount || 0}
                   </div>
@@ -203,10 +205,10 @@ const ViewSupplier = () => {
                 <div className="bg-gradient-to-br from-warning-50 to-warning-100 rounded-lg p-4 text-center">
                   <Activity className="h-6 w-6 text-warning-600 mx-auto mb-2" />
                   <div className="text-lg font-bold text-warning-700">
-                    {supplier?.outstanding_receivables || 0}
+                    {supplier?.outstanding_payables || 0}
                   </div>
                   <div className="text-sm text-warning-600">
-                    Outstanding Receivables
+                    Outstanding Payables
                   </div>
                 </div>
               </div>
@@ -219,8 +221,8 @@ const ViewSupplier = () => {
             {/* Contact Information Card - Left Half */}
             <div className="card-corrugated p-4">
               <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
-                <div className="bg-primary-100 rounded-full p-1 mr-2">
-                  <InfoIcon className="h-3 w-3 text-primary-600" />
+                <div className="bg-yellow-100 rounded-full p-1 mr-2">
+                  <InfoIcon className="h-3 w-3 text-yellow-600" />
                 </div>
                 Contact Information
               </h3>
@@ -281,8 +283,8 @@ const ViewSupplier = () => {
             {/* Another Card - Right Half */}
             <div className="card-corrugated p-4">
               <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
-                <div className="bg-primary-100 rounded-full p-1 mr-2">
-                  <Currency className="h-3 w-3 text-primary-600" />
+                <div className="bg-green-100 rounded-full p-1 mr-2">
+                  <Currency className="h-3 w-3 text-green-600" />
                 </div>
                 Financial Details
               </h3>
@@ -338,8 +340,8 @@ const ViewSupplier = () => {
             </div>
             <div className="card-corrugated p-4">
               <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
-                <div className="bg-primary-100 rounded-full p-1 mr-2">
-                  <File className="h-3 w-3 text-primary-600" />
+                <div className="bg-red-100 rounded-full p-1 mr-2">
+                  <File className="h-3 w-3 text-red-600" />
                 </div>
                 Address Information
               </h3>
@@ -443,8 +445,8 @@ const ViewSupplier = () => {
             </div>
             <div className="card-corrugated p-4">
               <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
-                <div className="bg-primary-100 rounded-full p-1 mr-2">
-                  <Currency className="h-3 w-3 text-primary-600" />
+                <div className="bg-blue-100 rounded-full p-1 mr-2">
+                  <PlusCircle className="h-3 w-3 text-blue-600" />
                 </div>
                 Addtional Information
               </h3>
@@ -455,7 +457,9 @@ const ViewSupplier = () => {
                       Notes
                     </p>
                     <p className="font-medium text-manufacturing-800 text-sm">
-                      {supplier?.notes == "" ? "Not provided" : supplier?.notes ?? "Not provided"}
+                      {supplier?.notes == ""
+                        ? "Not provided"
+                        : supplier?.notes ?? "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -463,7 +467,7 @@ const ViewSupplier = () => {
             </div>
             {getDocuments().length > 0 && (
               <div className="card-corrugated p-4 lg:col-span-2">
-                <h3 className="text-lg font-semibold text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
+                <h3 className="text-base font-medium text-manufacturing-800 mb-4 pb-2 border-b border-manufacturing-200 flex items-center">
                   <div className="bg-purple-100 rounded-full p-1 mr-2">
                     <FileText className="h-4 w-4 text-purple-600" />
                   </div>

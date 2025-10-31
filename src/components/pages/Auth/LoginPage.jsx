@@ -39,12 +39,13 @@ const LoginPage = () => {
       const result = await response.json();
       console.log("Login Response:", result);
       const token = result?.data?.token;
+      localStorage.setItem("Username", result?.data?.username);
       if (token) {
         setAuthToken(token);
       }
 
       toast.success("Login successful!");
-      navigate("/clients");
+      navigate("/client");
     } catch (error) {
       console.error("Login Error:", error);
       toast.error("Login failed. Please try again.");
