@@ -53,6 +53,67 @@ const AddProcess = () => {
     control,
     name: "process_custom_fields",
   });
+  const processName = watch("process_name");
+
+  // Auto-add default "Flute" field for Corrugation process
+  useEffect(() => {
+    const hasFluteField = fields.some(
+      (field) => field.field_label.toLowerCase() === "flute"
+    );
+
+    // ✅ Exact match check
+    const isExactCorrugation =
+      processName && processName.trim().toLowerCase() === "corrugation";
+
+    // ✅ Add "Flute" field at index 0 when processName is exactly "Corrugation"
+    if (isExactCorrugation && !hasFluteField) {
+      // Insert Flute at position 0
+      append(
+        {
+          field_label: "Flute",
+          field_type: "text",
+          dropdown_options: [],
+          is_required: true,
+          default_value: "",
+          field_order: fields.length + 1,
+          is_locked: true,
+        },
+        { shouldFocus: false }
+      );
+
+      // ✅ Reorder: move Flute to top if append adds it last
+      setTimeout(() => {
+        const updatedFields = [
+          {
+            field_label: "Flute",
+            field_type: "dropdown",
+            dropdown_options: ["A", "B", "C", "E", "F"],
+            is_required: true,
+            default_value: "",
+            field_order: 1,
+            is_locked: true,
+          },
+          ...fields.filter(
+            (field) => field.field_label.toLowerCase() !== "flute"
+          ),
+        ];
+
+        // Rebuild field order if necessary (if you store order)
+        updatedFields.forEach((field, i) => (field.field_order = i + 1));
+
+        // You can call reset or replace here if you use `useFieldArray`
+        // replace(updatedFields);
+      }, 0);
+    }
+
+    // ✅ Remove "Flute" field if processName is not exactly "Corrugation"
+    if (!isExactCorrugation && hasFluteField) {
+      const fluteIndex = fields.findIndex(
+        (field) => field.field_label.toLowerCase() === "flute"
+      );
+      if (fluteIndex !== -1) remove(fluteIndex);
+    }
+  }, [processName, fields, append, remove]);
 
   const onSubmit = async (data) => {
     console.log("Process Data Submitted:", data);
@@ -185,7 +246,13 @@ const AddProcess = () => {
 
       for (let i = 0; i < process_custom_fields.length; i++) {
         const field = process_custom_fields[i];
-        const { id: fieldId, process_id, db_id, ...cleanField } = field;
+        const {
+          id: fieldId,
+          process_id,
+          is_locked,
+          db_id,
+          ...cleanField
+        } = field;
 
         cleanField.is_required =
           cleanField.is_required === true ||
@@ -333,12 +400,14 @@ const AddProcess = () => {
           console.log("processCustomFieldsData", processCustomFieldsData);
 
           if (processData) {
-            // ✅ Format custom fields properly
+            // ✅ Detect exact Corrugation match
+            const isExactCorrugation =
+              processData.process_name?.trim()?.toLowerCase() === "corrugation";
+
+            // ✅ Format custom fields
             const formattedFields =
               processCustomFieldsData.length > 0
                 ? processCustomFieldsData.map((field, index) => {
-                    console.log("field", field);
-                    // Parse dropdown options
                     const dropdownOptions = Array.isArray(
                       field.dropdown_options
                     )
@@ -349,12 +418,10 @@ const AddProcess = () => {
                           .map((opt) => opt.trim())
                       : [];
 
-                    // Normalize field type
                     const normalizedFieldType = field.field_type
                       ? field.field_type.toLowerCase()
                       : "text";
 
-                    // Normalize default value
                     let defaultValue = field.default_value ?? "";
 
                     if (normalizedFieldType === "checkbox") {
@@ -369,7 +436,6 @@ const AddProcess = () => {
                       defaultValue = defaultValue
                         ? String(defaultValue).trim()
                         : "";
-
                       if (
                         defaultValue &&
                         !dropdownOptions.includes(defaultValue)
@@ -386,7 +452,7 @@ const AddProcess = () => {
                     }
 
                     return {
-                      db_id: field.id ?? null, // ✅ preserve real backend ID
+                      db_id: field.id ?? null,
                       field_label: field.field_label || "",
                       field_type: normalizedFieldType,
                       default_value: defaultValue,
@@ -398,6 +464,11 @@ const AddProcess = () => {
                           ? 1
                           : 0,
                       field_order: field.field_order || index + 1,
+
+                      // ✅ Lock field if process is exactly Corrugation
+                      is_locked:
+                        isExactCorrugation &&
+                        field.field_label?.trim()?.toLowerCase() === "flute",
                     };
                   })
                 : [
@@ -409,6 +480,7 @@ const AddProcess = () => {
                       dropdown_options: [],
                       is_required: 0,
                       field_order: 1,
+                      is_locked: false,
                     },
                   ];
 
@@ -420,13 +492,14 @@ const AddProcess = () => {
               process_number: processData.process_number ?? "",
               process_name: processData.process_name ?? "",
               process_custom_fields: formattedFields.map((field) => ({
-                db_id: field.db_id, // ✅ store original id separately
+                db_id: field.db_id,
                 field_label: field.field_label,
                 field_type: field.field_type,
                 default_value: field.default_value,
                 dropdown_options: field.dropdown_options,
                 is_required: field.is_required,
                 field_order: field.field_order,
+                is_locked: field.is_locked ?? false, // ✅ Include locked status
               })),
             });
           }
@@ -557,6 +630,7 @@ const AddProcess = () => {
                     </label>
                     <input
                       type="text"
+                      disabled={item.is_locked}
                       {...register(
                         `process_custom_fields.${index}.field_label`,
                         {
@@ -582,194 +656,51 @@ const AddProcess = () => {
                   </div>
 
                   {/* FIELD TYPE */}
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Field Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      {...register(
-                        `process_custom_fields.${index}.field_type`,
-                        {
-                          required: "Field type is required",
-                          onChange: (e) => {
-                            clearErrors(
-                              `process_custom_fields.${index}.field_type`
-                            );
-                            setValue(
-                              `process_custom_fields.${index}.default_value`,
-                              ""
-                            );
-                            setValue(
-                              `process_custom_fields.${index}.is_required`,
-                              false
-                            );
-                            clearErrors(
-                              `process_custom_fields.${index}.default_value`
-                            );
-                          },
-                        }
-                      )}
-                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                        errors?.process_custom_fields?.[index]?.field_type
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-300 hover:border-gray-400"
-                      }`}
-                    >
-                      <option value="">Select type</option>
-                      <option value="text">Text</option>
-                      <option value="number">Number</option>
-                      <option value="dropdown">Dropdown</option>
-                    </select>
-                    {errors?.process_custom_fields?.[index]?.field_type && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.process_custom_fields[index].field_type.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* FIELD ORDER */}
-                  <div>
-                    <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                      Field Order <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      {...register(
-                        `process_custom_fields.${index}.field_order`,
-                        {
-                          required: "Order is required",
-                        }
-                      )}
-                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                        errors?.process_custom_fields?.[index]?.field_order
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-300 hover:border-gray-400"
-                      }`}
-                      placeholder="Order"
-                    />
-                    {errors?.process_custom_fields?.[index]?.field_order && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {
-                          errors.process_custom_fields[index].field_order
-                            .message
-                        }
-                      </p>
-                    )}
-                  </div>
-
-                  {/* ✅ DEFAULT VALUE FIELD */}
-                  {/* ✅ DEFAULT VALUE FIELD */}
-                  {fieldType === "checkbox" ? (
-                    <div key={`${index}-checkbox`}>
+                  {!item.is_locked && (
+                    <div>
                       <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                        Default Value <span className="text-red-500">*</span>
+                        Field Type <span className="text-red-500">*</span>
                       </label>
                       <select
                         {...register(
-                          `process_custom_fields.${index}.default_value`,
+                          `process_custom_fields.${index}.field_type`,
                           {
-                            required: "Default value is required",
+                            required: "Field type is required",
+                            onChange: (e) => {
+                              clearErrors(
+                                `process_custom_fields.${index}.field_type`
+                              );
+                              setValue(
+                                `process_custom_fields.${index}.default_value`,
+                                ""
+                              );
+                              setValue(
+                                `process_custom_fields.${index}.is_required`,
+                                false
+                              );
+                              clearErrors(
+                                `process_custom_fields.${index}.default_value`
+                              );
+                            },
                           }
                         )}
-                        onChange={() => {
-                          clearErrors(
-                            `process_custom_fields.${index}.default_value`
-                          );
-                        }}
+                        disabled={item.is_locked}
                         className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                          errors?.process_custom_fields?.[index]?.default_value
+                          errors?.process_custom_fields?.[index]?.field_type
                             ? "border-red-500 bg-red-50"
                             : "border-gray-300 hover:border-gray-400"
                         }`}
                       >
-                        <option value="">Select default value</option>
-                        <option value="true">True</option>
-                        <option value="false">False</option>
+                        <option value="">Select type</option>
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                        <option value="dropdown">Dropdown</option>
                       </select>
-                      {errors?.process_custom_fields?.[index]
-                        ?.default_value && (
+                      {errors?.process_custom_fields?.[index]?.field_type && (
                         <p className="mt-2 text-sm text-red-600 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
                           {
-                            errors.process_custom_fields[index].default_value
-                              .message
-                          }
-                        </p>
-                      )}
-                    </div>
-                  ) : fieldType === "dropdown" ? (
-                    <div key={`${index}-dropdown`}>
-                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                        Default Value <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        {...register(
-                          `process_custom_fields.${index}.default_value`,
-                          {
-                            required: "Default value is required",
-                          }
-                        )}
-                        onChange={() => {
-                          clearErrors(
-                            `process_custom_fields.${index}.default_value`
-                          );
-                        }}
-                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                          errors?.process_custom_fields?.[index]?.default_value
-                            ? "border-red-500 bg-red-50"
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                      >
-                        <option value="">Select default value</option>
-                        {dropdownOptions?.length > 0 ? (
-                          dropdownOptions.map((opt, optIndex) => (
-                            <option key={optIndex} value={opt}>
-                              {opt}
-                            </option>
-                          ))
-                        ) : (
-                          <option disabled>No options available</option>
-                        )}
-                      </select>
-                      {errors?.process_custom_fields?.[index]
-                        ?.default_value && (
-                        <p className="mt-2 text-sm text-red-600 flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          {
-                            errors.process_custom_fields[index].default_value
-                              .message
-                          }
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div key={`${index}-${fieldType || "text"}`}>
-                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
-                        Default Value <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type={fieldType === "number" ? "number" : "text"}
-                        {...register(
-                          `process_custom_fields.${index}.default_value`,
-                          {
-                            required: "Default value is required",
-                          }
-                        )}
-                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
-                          errors?.process_custom_fields?.[index]?.default_value
-                            ? "border-red-500 bg-red-50"
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                        placeholder="Enter default value"
-                      />
-                      {errors?.process_custom_fields?.[index]
-                        ?.default_value && (
-                        <p className="mt-2 text-sm text-red-600 flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          {
-                            errors.process_custom_fields[index].default_value
+                            errors.process_custom_fields[index].field_type
                               .message
                           }
                         </p>
@@ -777,87 +708,256 @@ const AddProcess = () => {
                     </div>
                   )}
 
-                  {/* REQUIRED CHECKBOX */}
-                  <label className="flex align-items-center md:justify-center">
-                    <input
-                      type="checkbox"
-                      {...register(
-                        `process_custom_fields.${index}.is_required`
+                  {/* FIELD ORDER */}
+                  {!item.is_locked && (
+                    <div>
+                      <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                        Field Order <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        {...register(
+                          `process_custom_fields.${index}.field_order`,
+                          {
+                            required: "Order is required",
+                          }
+                        )}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                          errors?.process_custom_fields?.[index]?.field_order
+                            ? "border-red-500 bg-red-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        placeholder="Order"
+                      />
+                      {errors?.process_custom_fields?.[index]?.field_order && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {
+                            errors.process_custom_fields[index].field_order
+                              .message
+                          }
+                        </p>
                       )}
-                      className="mr-2"
-                    />
-                    <span className="text-xs font-medium text-gray-700">
-                      Required
-                    </span>
-                  </label>
+                    </div>
+                  )}
+
+                  {/* ✅ DEFAULT VALUE FIELD */}
+                  {/* ✅ DEFAULT VALUE FIELD */}
+                  {!item.is_locked && (
+                    <>
+                      {fieldType === "checkbox" ? (
+                        <div key={`${index}-checkbox`}>
+                          <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                            Default Value{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            {...register(
+                              `process_custom_fields.${index}.default_value`,
+                              {
+                                required: "Default value is required",
+                              }
+                            )}
+                            onChange={() => {
+                              clearErrors(
+                                `process_custom_fields.${index}.default_value`
+                              );
+                            }}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                              errors?.process_custom_fields?.[index]
+                                ?.default_value
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 hover:border-gray-400"
+                            }`}
+                          >
+                            <option value="">Select default value</option>
+                            <option value="true">True</option>
+                            <option value="false">False</option>
+                          </select>
+                          {errors?.process_custom_fields?.[index]
+                            ?.default_value && (
+                            <p className="mt-2 text-sm text-red-600 flex items-center">
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                              {
+                                errors.process_custom_fields[index]
+                                  .default_value.message
+                              }
+                            </p>
+                          )}
+                        </div>
+                      ) : fieldType === "dropdown" ? (
+                        <div key={`${index}-dropdown`}>
+                          <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                            Default Value{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            {...register(
+                              `process_custom_fields.${index}.default_value`,
+                              {
+                                required: "Default value is required",
+                              }
+                            )}
+                            onChange={() => {
+                              clearErrors(
+                                `process_custom_fields.${index}.default_value`
+                              );
+                            }}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                              errors?.process_custom_fields?.[index]
+                                ?.default_value
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 hover:border-gray-400"
+                            }`}
+                          >
+                            <option value="">Select default value</option>
+                            {dropdownOptions?.length > 0 ? (
+                              dropdownOptions.map((opt, optIndex) => (
+                                <option key={optIndex} value={opt}>
+                                  {opt}
+                                </option>
+                              ))
+                            ) : (
+                              <option disabled>No options available</option>
+                            )}
+                          </select>
+                          {errors?.process_custom_fields?.[index]
+                            ?.default_value && (
+                            <p className="mt-2 text-sm text-red-600 flex items-center">
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                              {
+                                errors.process_custom_fields[index]
+                                  .default_value.message
+                              }
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div key={`${index}-${fieldType || "text"}`}>
+                          <label className="block text-xs font-medium text-manufacturing-700 mb-1">
+                            Default Value{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type={fieldType === "number" ? "number" : "text"}
+                            {...register(
+                              `process_custom_fields.${index}.default_value`,
+                              {
+                                required: "Default value is required",
+                              }
+                            )}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500 transition-colors ${
+                              errors?.process_custom_fields?.[index]
+                                ?.default_value
+                                ? "border-red-500 bg-red-50"
+                                : "border-gray-300 hover:border-gray-400"
+                            }`}
+                            placeholder="Enter default value"
+                          />
+                          {errors?.process_custom_fields?.[index]
+                            ?.default_value && (
+                            <p className="mt-2 text-sm text-red-600 flex items-center">
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                              {
+                                errors.process_custom_fields[index]
+                                  .default_value.message
+                              }
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* REQUIRED CHECKBOX */}
+                  {!item.is_locked && (
+                    <label className="flex align-items-center md:justify-center">
+                      <input
+                        type="checkbox"
+                        {...register(
+                          `process_custom_fields.${index}.is_required`
+                        )}
+                        className="mr-2"
+                      />
+                      <span className="text-xs font-medium text-gray-700">
+                        Required
+                      </span>
+                    </label>
+                  )}
 
                   {/* DELETE BUTTON */}
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(index, item)}
-                    className="px-3 py-2 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors flex items-center justify-center"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </button>
+                  {!item.is_locked && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(index, item)}
+                      className="px-3 py-2 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors flex items-center justify-center"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </button>
+                  )}
                 </div>
 
                 {/* SHOW DROPDOWN OPTIONS SECTION */}
-                {fieldType === "dropdown" && (
-                  <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mt-2">
-                    <p className="text-xs font-medium text-gray-700 mb-2">
-                      Add Options to the dropdown field
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newOptions[index] || ""}
-                        onChange={(e) =>
-                          setNewOptions((prev) => ({
-                            ...prev,
-                            [index]: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter option value"
-                        className="w-1/4 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddOption(index)}
-                        className="p-2 bg-corrugated-600 text-white rounded-lg hover:bg-corrugated-700"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* Added options */}
-                    {dropdownOptions?.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-xs font-medium text-gray-700 mb-1">
-                          Added Options:
+                {!item.is_locked && fieldType === "dropdown" && (
+                  <>
+                    {fieldType === "dropdown" && (
+                      <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mt-2">
+                        <p className="text-xs font-medium text-gray-700 mb-2">
+                          Add Options to the dropdown field
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {dropdownOptions.map((opt, optIndex) => (
-                            <div
-                              key={optIndex}
-                              className="flex items-center bg-gray-100 px-2 py-1 rounded text-xs"
-                            >
-                              {opt}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveOption(index, optIndex)
-                                }
-                                className="ml-2 text-red-600 hover:text-red-800"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newOptions[index] || ""}
+                            onChange={(e) =>
+                              setNewOptions((prev) => ({
+                                ...prev,
+                                [index]: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter option value"
+                            className="w-1/4 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-corrugated-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddOption(index)}
+                            className="p-2 bg-corrugated-600 text-white rounded-lg hover:bg-corrugated-700"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
                         </div>
+
+                        {/* Added options */}
+                        {dropdownOptions?.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-xs font-medium text-gray-700 mb-1">
+                              Added Options:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {dropdownOptions.map((opt, optIndex) => (
+                                <div
+                                  key={optIndex}
+                                  className="flex items-center bg-gray-100 px-2 py-1 rounded text-xs"
+                                >
+                                  {opt}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRemoveOption(index, optIndex)
+                                    }
+                                    className="ml-2 text-red-600 hover:text-red-800"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             );

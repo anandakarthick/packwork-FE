@@ -404,7 +404,7 @@ const AddSupplier = () => {
       reset();
       setUploadedDocuments([]);
 
-      setTimeout(() => navigate("/suppliers"), 100);
+      setTimeout(() => navigate("/supplier"), 100);
     } catch (error) {
       console.error("❌ Error submitting supplier data:", error);
       toast.error(
@@ -535,7 +535,7 @@ const AddSupplier = () => {
           ? "Update supplier details and specifications"
           : "Create a new supplier record"
       }
-      onCancel={() => navigate("/suppliers")}
+      onCancel={() => navigate("/supplier")}
       onSubmit={handleSubmit(onSubmit)}
       submitText={id ? "Update Supplier" : "Create Supplier"}
     >

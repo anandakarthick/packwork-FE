@@ -38,11 +38,11 @@ function App() {
           <Route path="/add-sku" element={<AddSku />} />
           <Route path="/edit-sku/:id" element={<AddSku />} />
           <Route path="/view-sku/:id" element={<ViewSku />} />
-          <Route path="/clients" element={<Clients />} />
+          <Route path="/client" element={<Clients />} />
           <Route path="/add-client" element={<AddClient />} />
           <Route path="/edit-client/:id" element={<AddClient />} />
           <Route path="/view-client/:id" element={<ViewClient />} />
-          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/supplier" element={<Suppliers />} />
           <Route path="/add-supplier" element={<AddSupplier />} />
           <Route path="/edit-supplier/:id" element={<AddSupplier />} />
           <Route path="/view-supplier/:id" element={<ViewSupplier />} />

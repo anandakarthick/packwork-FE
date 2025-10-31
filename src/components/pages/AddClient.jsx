@@ -465,7 +465,7 @@ const AddClient = () => {
       reset();
       setUploadedDocuments([]);
 
-      setTimeout(() => navigate("/clients"), 100);
+      setTimeout(() => navigate("/client"), 100);
     } catch (error) {
       console.error("❌ Error submitting customer data:", error);
       toast.error(
@@ -599,7 +599,7 @@ const AddClient = () => {
           ? "Update client details and specifications"
           : "Create a new client record"
       }
-      onCancel={() => navigate("/clients")}
+      onCancel={() => navigate("/client")}
       onSubmit={handleSubmit(onSubmit)}
       submitText={id ? "Update Client" : "Create Client"}
     >
