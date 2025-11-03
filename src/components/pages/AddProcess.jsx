@@ -29,6 +29,7 @@ const AddProcess = () => {
     getValues,
     clearErrors,
     reset,
+
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -49,7 +50,7 @@ const AddProcess = () => {
     },
   });
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove, update, replace } = useFieldArray({
     control,
     name: "process_custom_fields",
   });
@@ -57,63 +58,51 @@ const AddProcess = () => {
 
   // Auto-add default "Flute" field for Corrugation process
   useEffect(() => {
+    const lowerProcessName = processName?.trim().toLowerCase();
+    const isCorrugation = lowerProcessName === "corrugation";
+
     const hasFluteField = fields.some(
       (field) => field.field_label.toLowerCase() === "flute"
     );
 
-    // ✅ Exact match check
-    const isExactCorrugation =
-      processName && processName.trim().toLowerCase() === "corrugation";
+    // ✅ Add "Flute" at the top when process is Corrugation
+    if (isCorrugation && !hasFluteField) {
+      const fluteField = {
+        field_label: "Flute",
+        field_type: "text",
+        dropdown_options: [],
+        is_required: true,
+        default_value: "",
+        field_order: 1,
+        is_locked: true,
+      };
 
-    // ✅ Add "Flute" field at index 0 when processName is exactly "Corrugation"
-    if (isExactCorrugation && !hasFluteField) {
-      // Insert Flute at position 0
-      append(
-        {
-          field_label: "Flute",
-          field_type: "text",
-          dropdown_options: [],
-          is_required: true,
-          default_value: "",
-          field_order: fields.length + 1,
-          is_locked: true,
-        },
-        { shouldFocus: false }
-      );
+      // ✅ Insert Flute at position 0
+      const updatedFields = [fluteField, ...fields];
 
-      // ✅ Reorder: move Flute to top if append adds it last
-      setTimeout(() => {
-        const updatedFields = [
-          {
-            field_label: "Flute",
-            field_type: "dropdown",
-            dropdown_options: ["A", "B", "C", "E", "F"],
-            is_required: true,
-            default_value: "",
-            field_order: 1,
-            is_locked: true,
-          },
-          ...fields.filter(
-            (field) => field.field_label.toLowerCase() !== "flute"
-          ),
-        ];
+      // ✅ Recalculate field_order (starting from 1)
+      updatedFields.forEach((f, i) => {
+        f.field_order = i + 1;
+      });
 
-        // Rebuild field order if necessary (if you store order)
-        updatedFields.forEach((field, i) => (field.field_order = i + 1));
-
-        // You can call reset or replace here if you use `useFieldArray`
-        // replace(updatedFields);
-      }, 0);
+      // ✅ Replace existing fields array (if using useFieldArray)
+      replace(updatedFields);
     }
 
-    // ✅ Remove "Flute" field if processName is not exactly "Corrugation"
-    if (!isExactCorrugation && hasFluteField) {
-      const fluteIndex = fields.findIndex(
-        (field) => field.field_label.toLowerCase() === "flute"
+    // ✅ Remove "Flute" when process is not Corrugation
+    if (!isCorrugation && hasFluteField) {
+      const updatedFields = fields.filter(
+        (f) => f.field_label.toLowerCase() !== "flute"
       );
-      if (fluteIndex !== -1) remove(fluteIndex);
+
+      // ✅ Reorder field_order again (start from 1)
+      updatedFields.forEach((f, i) => {
+        f.field_order = i + 1;
+      });
+
+      replace(updatedFields);
     }
-  }, [processName, fields, append, remove]);
+  }, [processName, fields, append, remove, replace]);
 
   const onSubmit = async (data) => {
     console.log("Process Data Submitted:", data);
