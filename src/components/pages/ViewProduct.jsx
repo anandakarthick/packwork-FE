@@ -66,7 +66,7 @@ const ViewProduct = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/product")}
               className="mr-3 p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -92,7 +92,7 @@ const ViewProduct = () => {
               Edit
             </button>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/product")}
               className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
             >
               <X className="h-4 w-4" />

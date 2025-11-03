@@ -102,10 +102,10 @@ const ViewClient = () => {
   };
   const [collapsedSections, setCollapsedSections] = useState({
     invoices: true, // Collapse invoices by default
-    skus: false, // Keep SKUs open by default
+    skus: true, // Keep SKUs open by default
     salesOrders: true, // Collapse sales orders by default
     workOrders: true, // Collapse work orders by default
-    creditNotes: false,
+    creditNotes: true,
   });
   const [expandedCards, setExpandedCards] = useState({
     skus: new Set(),

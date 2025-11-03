@@ -65,7 +65,7 @@ const AddProduct = () => {
     ProductService.getById(id).then((res) => {
       if (!res.success) {
         alert("Error fetching product");
-        navigate("/");
+        navigate("/product");
         return;
       }
 
@@ -221,7 +221,7 @@ const AddProduct = () => {
   const onSubmit = (data) => {
     if (!id) {
       ProductService.create(data).then((res) => {
-        if (res.success) navigate("/");
+        if (res.success) navigate("/product");
         else alert("Error creating product: " + res.message);
       });
       return;
@@ -297,7 +297,7 @@ const AddProduct = () => {
     console.log("Final Payload with IDs:", finalData);
 
     ProductService.update(id, finalData).then((res) => {
-      if (res.success) navigate("/");
+      if (res.success) navigate("/product");
       else alert("Error updating product: " + res.message);
     });
   };
@@ -325,7 +325,7 @@ const AddProduct = () => {
           ? "Update product details and specifications"
           : "Create a new product record"
       }
-      onCancel={() => navigate("/")}
+      onCancel={() => navigate("/product")}
       onSubmit={handleSubmit(onSubmit)}
       submitText={id ? "Update Product" : "Create Product"}
     >
