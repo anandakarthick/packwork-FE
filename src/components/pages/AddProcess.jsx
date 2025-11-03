@@ -530,6 +530,9 @@ const AddProcess = () => {
               </label>
               <input
                 type="text"
+                disabled={
+                  watch("process_name") === "Corrugation" && id ? true : false
+                }
                 {...register("process_name", {
                   required: "Process name is required",
                 })}
